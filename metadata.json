@@ -1,0 +1,8 @@
+{
+  "name": "BuildOps",
+  "description": "BuildOps: Modern enterprise-level Construction Management ERP for Quantity Surveying, Project Planning, and Performance-Driven Progress Management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
