@@ -314,7 +314,7 @@ export const ProjectProvider = ({ children }: { children: React.ReactNode }) => 
   });
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
-    return localStorage.getItem('buildops_selected_project_id') || 'proj-1'; // Default on load is proj-1 (Skyline Towers)
+    return localStorage.getItem('buildops_selected_project_id') || null; // Start with no project selected - show portfolio dashboard
   });
 
   const [recentProjectIds, setRecentProjectIds] = useState<string[]>(() => {

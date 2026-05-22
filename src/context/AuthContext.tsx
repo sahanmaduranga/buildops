@@ -64,11 +64,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<IAMUser | null>(() => {
     const saved = localStorage.getItem('iam_current_user');
     if (saved) return JSON.parse(saved);
-    // Default logged in user is Robert Chen (usr-1) for pristine demo experience
-    const initialDbUsers = loadIAMData().users;
-    const defaultUser = initialDbUsers.find(u => u.id === 'usr-1') || initialDbUsers[0];
-    localStorage.setItem('iam_current_user', JSON.stringify(defaultUser));
-    return defaultUser;
+    // Start with no logged in user - show AuthPages first
+    return null;
   });
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
@@ -82,7 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (hash) {
       return hash.replace('#', '');
     }
-    return window.location.pathname === '/' ? '/admin/users' : window.location.pathname;
+    return '/login';
   });
 
   // Route Navigator
@@ -300,6 +297,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     setCurrentUser(null);
     setActiveSessionId(null);
+    // Clear selected project so user returns to portfolio dashboard on next login
+    localStorage.removeItem('buildops_selected_project_id');
     navigateTo('/login');
   };
 
