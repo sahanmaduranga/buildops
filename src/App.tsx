@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppLayout } from './components/Layout.tsx';
+import { TenderProvider } from './context/TenderContext.tsx';
+import { TenderManagementShell } from './components/TenderManagement.tsx';
 import { Dashboard } from './components/Dashboard.tsx';
 import { ResourceManagement } from './components/ResourceManagement.tsx';
 import { RateAnalysisScreen } from './components/RateAnalysis.tsx';
@@ -67,6 +69,9 @@ import { ProjectSettings } from './components/ProjectSettings.tsx';
 
 import { ProgressProvider } from './context/ProgressContext.tsx';
 import { BOQProvider, useBOQ } from './context/BOQContext.tsx';
+import { SubcontractProvider } from './context/SubcontractContext.tsx';
+import { SubcontractorRegistry } from './components/subcontract/SubcontractorRegistry.tsx';
+import { SubcontractManagement } from './components/SubcontractManagement.tsx';
 
 // IAM Module Components & Contexts
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
@@ -127,12 +132,26 @@ function AppWorkspace() {
   const [boqList, setBoqList] = useState<BOQItem[]>(MOCK_BOQ);
   const [sots, setSots] = useState<SOT[]>(MOCK_SOTS);
 
+  // Handle post-login redirect to portfolio dashboard
+  useEffect(() => {
+    if (currentUser && currentPath === '/portfolio') {
+      // Ensure we're on the portfolio dashboard with no project selected
+      selectProject(null);
+      setActiveTab('dashboard');
+    }
+  }, [currentUser, currentPath]);
+
   // Dynamic redirect if user custom loads direct profiles
   useEffect(() => {
     if (activeTab.startsWith('admin-users-detail-')) {
       const uId = activeTab.replace('admin-users-detail-', '');
       setSelectedAdminUserId(uId);
-      setActiveTab('admin-users');
+      setActiveTab('administrator');
+      setActiveSubTab('admin-users');
+    } else if (activeTab.startsWith('admin-')) {
+      const legacyTab = activeTab;
+      setActiveTab('administrator');
+      setActiveSubTab(legacyTab);
     }
   }, [activeTab]);
 
@@ -144,7 +163,7 @@ function AppWorkspace() {
     } else {
       // If no project is focused, go back to portfolio scorecard
       // Preserve active tab if it's an administration tab!
-      if (!activeTab.startsWith('admin-')) {
+      if (activeTab !== 'administrator' && !activeTab.startsWith('admin-')) {
         setActiveTab('dashboard');
       }
     }
@@ -457,144 +476,181 @@ function AppWorkspace() {
     // ----------------------------------------------------
     // ADMINISTRATION ROUTING PANE SWITCHERS
     // ----------------------------------------------------
-    if (activeTab === 'admin-users') {
-      if (selectedAdminUserId) {
-        return <UserDetailPage userId={selectedAdminUserId} onBack={() => setSelectedAdminUserId(null)} />;
-      }
-      return (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-            <div>
-              <h3 className="text-base font-black text-zentrix-blue">User Directories & Corporate Accounts</h3>
-              <p className="text-[12px] text-slate-400 font-semibold mt-1">Search, lock, or modify user scopes mapping this tenant.</p>
-            </div>
+    if (activeTab === 'administrator') {
+      switch (activeSubTab) {
+        case 'admin-users':
+          if (selectedAdminUserId) {
+            return <UserDetailPage userId={selectedAdminUserId} onBack={() => setSelectedAdminUserId(null)} />;
+          }
+          return (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                <div>
+                  <h3 className="text-base font-black text-zentrix-blue">User Directories & Corporate Accounts</h3>
+                  <p className="text-[12px] text-slate-400 font-semibold mt-1">Search, lock, or modify user scopes mapping this tenant.</p>
+                </div>
 
-            <button
-              onClick={() => setIsInviteDrawerOpen(true)}
-              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all cursor-pointer whitespace-nowrap shrink-0"
-            >
-              <UserPlus size={15} />
-              Issue Onboarding Invitation
-            </button>
-          </div>
+                <button
+                  onClick={() => setIsInviteDrawerOpen(true)}
+                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <UserPlus size={15} />
+                  Issue Onboarding Invitation
+                </button>
+              </div>
 
-          <UserTable
-            users={users}
-            roles={roles}
-            onViewDetails={(id) => setSelectedAdminUserId(id)}
-            onEditUser={(id) => setSelectedAdminUserId(id)}
-          />
-
-          <InviteUserDrawer isOpen={isInviteDrawerOpen} onClose={() => setIsInviteDrawerOpen(false)} />
-        </div>
-      );
-    }
-
-    if (activeTab === 'admin-roles') {
-      if (selectedAdminRoleId) {
-        return <RoleDetailPage roleId={selectedAdminRoleId} onBack={() => setSelectedAdminRoleId(null)} />;
-      }
-      return (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-            <div>
-              <h3 className="text-base font-black text-zentrix-blue">IAM Security Profiles & Roles Matrix</h3>
-              <p className="text-[12px] text-slate-400 font-semibold mt-1">Create or modify permission claim blocks mapping role indices.</p>
-            </div>
-
-            <button
-              onClick={() => {
-                const nm = prompt('Enter a name for the new custom Role:');
-                if (nm) {
-                  addRole({
-                    name: nm,
-                    description: 'Custom security profile created under tenant administrative guidelines.',
-                    scope: 'Project-Specific',
-                    permissions: ['BOQ.View', 'Rate.View', 'Resources.View', 'Projects.View']
-                  });
-                  alert('Custom role created. You can now modify its parameters.');
-                }
-              }}
-              className="px-4 py-2 bg-slate-900 border border-slate-900 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 shadow cursor-pointer whitespace-nowrap shrink-0"
-            >
-              <Plus size={14} className="text-primary-450 text-indigo-400" />
-              Create Core Role Profile
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {roles.map((role) => (
-              <RoleCard
-                key={role.id}
-                role={role}
-                isActive={false}
-                onSelect={() => setSelectedAdminRoleId(role.id)}
-                onEdit={() => setSelectedAdminRoleId(role.id)}
-                onDuplicate={() => {
-                  addRole({
-                    name: `${role.name} Copy`,
-                    description: `Duplicate clone of security profile [${role.name}].`,
-                    scope: role.scope,
-                    permissions: [...role.permissions]
-                  });
-                  alert('Role configurations duplicated.');
-                }}
-                onDelete={() => {
-                  if (confirm(`Archive and delete the custom role [${role.name}]?`)) {
-                    deleteRole(role.id);
-                  }
-                }}
+              <UserTable
+                users={users}
+                roles={roles}
+                onViewDetails={(id) => setSelectedAdminUserId(id)}
+                onEditUser={(id) => setSelectedAdminUserId(id)}
               />
-            ))}
-          </div>
-        </div>
-      );
+
+              <InviteUserDrawer isOpen={isInviteDrawerOpen} onClose={() => setIsInviteDrawerOpen(false)} />
+            </div>
+          );
+
+        case 'admin-roles':
+          if (selectedAdminRoleId) {
+            return <RoleDetailPage roleId={selectedAdminRoleId} onBack={() => setSelectedAdminRoleId(null)} />;
+          }
+          return (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                <div>
+                  <h3 className="text-base font-black text-zentrix-blue">IAM Security Profiles & Roles Matrix</h3>
+                  <p className="text-[12px] text-slate-400 font-semibold mt-1">Create or modify permission claim blocks mapping role indices.</p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const nm = prompt('Enter a name for the new custom Role:');
+                    if (nm) {
+                      addRole({
+                        name: nm,
+                        description: 'Custom security profile created under tenant administrative guidelines.',
+                        scope: 'Project-Specific',
+                        permissions: ['BOQ.View', 'Rate.View', 'Resources.View', 'Projects.View']
+                      });
+                      alert('Custom role created. You can now modify its parameters.');
+                    }
+                  }}
+                  className="px-4 py-2 bg-slate-900 border border-slate-900 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 shadow cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <Plus size={14} className="text-primary-450 text-indigo-400" />
+                  Create Core Role Profile
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {roles.map((role) => (
+                  <RoleCard
+                    key={role.id}
+                    role={role}
+                    isActive={false}
+                    onSelect={() => setSelectedAdminRoleId(role.id)}
+                    onEdit={() => setSelectedAdminRoleId(role.id)}
+                    onDuplicate={() => {
+                      addRole({
+                        name: `${role.name} Copy`,
+                        description: `Duplicate clone of security profile [${role.name}].`,
+                        scope: role.scope,
+                        permissions: [...role.permissions]
+                      });
+                      alert('Role configurations duplicated.');
+                    }}
+                    onDelete={() => {
+                      if (confirm(`Archive and delete the custom role [${role.name}]?`)) {
+                        deleteRole(role.id);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+
+        case 'admin-project-access':
+          return (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-base font-black text-zentrix-blue border-b border-slate-200 pb-4 mb-1">Project Workspace Access Dashboard</h3>
+              </div>
+              <ProjectAccessGrid users={users} roles={roles} projects={projects} />
+            </div>
+          );
+
+        case 'admin-invitations':
+          return <InvitationsPanel />;
+
+        case 'admin-security':
+          return (
+            <div className="space-y-6 animate-fade-in">
+              <SecurityCard settings={securitySettings} onUpdate={updateSecuritySettings} />
+            </div>
+          );
+
+        case 'admin-audit-logs':
+          return (
+            <div className="space-y-6">
+              <div className="border-b border-slate-200 pb-4">
+                <h3 className="text-base font-black text-zentrix-blue">Tenant System Audit Logs</h3>
+                <p className="text-[12.5px] text-slate-400 mt-1">Read immutable, ISO-compliant records tracking administration actions.</p>
+              </div>
+              <AuditTable logs={auditLogs} />
+            </div>
+          );
+
+        case 'admin-branding':
+          return <TenatOrganizationSettingsPanel />;
+
+        case 'admin-auth-policies':
+          return (
+            <div className="space-y-6">
+              <SecurityCard settings={securitySettings} onUpdate={updateSecuritySettings} />
+            </div>
+          );
+
+        default:
+          if (selectedAdminUserId) {
+            return <UserDetailPage userId={selectedAdminUserId} onBack={() => setSelectedAdminUserId(null)} />;
+          }
+          return (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                <div>
+                  <h3 className="text-base font-black text-zentrix-blue">User Directories & Corporate Accounts</h3>
+                  <p className="text-[12px] text-slate-400 font-semibold mt-1">Search, lock, or modify user scopes mapping this tenant.</p>
+                </div>
+
+                <button
+                  onClick={() => setIsInviteDrawerOpen(true)}
+                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <UserPlus size={15} />
+                  Issue Onboarding Invitation
+                </button>
+              </div>
+
+              <UserTable
+                users={users}
+                roles={roles}
+                onViewDetails={(id) => setSelectedAdminUserId(id)}
+                onEditUser={(id) => setSelectedAdminUserId(id)}
+              />
+
+              <InviteUserDrawer isOpen={isInviteDrawerOpen} onClose={() => setIsInviteDrawerOpen(false)} />
+            </div>
+          );
+      }
     }
 
-    if (activeTab === 'admin-project-access') {
+    if (activeTab === 'tender-management') {
       return (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-base font-black text-zentrix-blue border-b border-slate-200 pb-4 mb-1">Project Workspace Access Dashboard</h3>
-          </div>
-          <ProjectAccessGrid users={users} roles={roles} projects={projects} />
-        </div>
-      );
-    }
-
-    if (activeTab === 'admin-invitations') {
-      return <InvitationsPanel />;
-    }
-
-    if (activeTab === 'admin-security') {
-      return (
-        <div className="space-y-6 animate-fade-in">
-          <SecurityCard settings={securitySettings} onUpdate={updateSecuritySettings} />
-        </div>
-      );
-    }
-
-    if (activeTab === 'admin-audit-logs') {
-      return (
-        <div className="space-y-6">
-          <div className="border-b border-slate-200 pb-4">
-            <h3 className="text-base font-black text-zentrix-blue">Tenant System Audit Logs</h3>
-            <p className="text-[12.5px] text-slate-400 mt-1">Read immutable, ISO-compliant records tracking administration actions.</p>
-          </div>
-          <AuditTable logs={auditLogs} />
-        </div>
-      );
-    }
-
-    if (activeTab === 'admin-branding') {
-      return <TenatOrganizationSettingsPanel />;
-    }
-
-    if (activeTab === 'admin-auth-policies') {
-      return (
-        <div className="space-y-6">
-          <SecurityCard settings={securitySettings} onUpdate={updateSecuritySettings} />
-        </div>
+        <TenderManagementShell 
+          activeSubTab={activeSubTab || 'tender-dashboard'} 
+          setActiveSubTab={setActiveSubTab} 
+        />
       );
     }
 
@@ -640,6 +696,8 @@ function AppWorkspace() {
           );
         case 'master-data':
           return renderMasterData();
+        case 'subcontractor-registry':
+          return <SubcontractorRegistry />;
         case 'project-teams':
           return <ProjectTeams />;
         case 'project-documents':
@@ -704,6 +762,10 @@ function AppWorkspace() {
         return <CostControlModule activeSubTab={activeSubTab} setActiveSubTab={setActiveSubTab} />;
       case 'procurement':
         return <ProcurementModule activeSubTab={activeSubTab} setActiveSubTab={setActiveSubTab} />;
+      case 'subcontract':
+        return <SubcontractManagement activeSubTab={activeSubTab || 'subcontract-dashboard'} />;
+      case 'subcontractor-registry':
+        return <SubcontractorRegistry />;
       case 'project-documents':
         return <ProjectDocuments />;
       case 'project-calendar':
@@ -742,9 +804,13 @@ export default function App() {
       <AuthProvider>
         <ProgressProvider>
           <CommercialProvider>
-            <BOQProvider>
-              <AppWorkspace />
-            </BOQProvider>
+            <SubcontractProvider>
+              <BOQProvider>
+                <TenderProvider>
+                  <AppWorkspace />
+                </TenderProvider>
+              </BOQProvider>
+            </SubcontractProvider>
           </CommercialProvider>
         </ProgressProvider>
       </AuthProvider>

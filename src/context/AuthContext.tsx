@@ -57,29 +57,33 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const { currentProject } = useProject();
+  const { currentProject, selectProject } = useProject();
 
   // 1. Core State loaded from localStorage of mock database
   const [db, setDb] = useState(() => loadIAMData());
   const [currentUser, setCurrentUser] = useState<IAMUser | null>(() => {
     const saved = localStorage.getItem('iam_current_user');
     if (saved) return JSON.parse(saved);
-    // Start with no logged in user - show AuthPages first
+    // First page always should be login page, so we default to null
     return null;
   });
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
-    return localStorage.getItem('iam_active_session_id') || 'sess-1';
+    const savedUser = localStorage.getItem('iam_current_user');
+    return savedUser ? (localStorage.getItem('iam_active_session_id') || 'sess-1') : null;
   });
 
   // Track simple virtual path in URL state
   const [currentPath, setCurrentPath] = useState(() => {
-    // Check if hash exists, e.g. #/login, #/admin/users
+    const savedUser = localStorage.getItem('iam_current_user');
     const hash = window.location.hash;
-    if (hash) {
-      return hash.replace('#', '');
+    const initialRoute = hash ? hash.replace('#', '') : (window.location.pathname === '/' ? '/login' : window.location.pathname);
+    
+    // Force login if no user is saved
+    if (!savedUser && !['/login', '/forgot-password', '/reset-password', '/mfa-verification'].includes(initialRoute)) {
+      return '/login';
     }
-    return '/login';
+    return initialRoute === '/' ? '/login' : initialRoute;
   });
 
   // Route Navigator
@@ -95,11 +99,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Sync virtual path with window popstate/hashchange
   useEffect(() => {
     const handleLocationChange = () => {
+      const savedUser = localStorage.getItem('iam_current_user');
       const hash = window.location.hash;
-      if (hash) {
-        setCurrentPath(hash.replace('#', ''));
+      const rawRoute = hash ? hash.replace('#', '') : (window.location.pathname === '/' ? '/login' : window.location.pathname);
+      
+      if (!savedUser && !['/login', '/forgot-password', '/reset-password', '/mfa-verification'].includes(rawRoute)) {
+        setCurrentPath('/login');
       } else {
-        setCurrentPath(window.location.pathname === '/' ? '/admin/users' : window.location.pathname);
+        setCurrentPath(rawRoute);
       }
     };
 
@@ -258,6 +265,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrentUser(matchedUser);
     const newSessionId = `sess-${Date.now()}`;
     setActiveSessionId(newSessionId);
+    selectProject(null); // Clear selected project on login!
 
     // Create a new session entry
     const newSession: IAMSession = {
@@ -295,10 +303,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
     
+    selectProject(null); // Clear selected project on logout!
     setCurrentUser(null);
     setActiveSessionId(null);
-    // Clear selected project so user returns to portfolio dashboard on next login
-    localStorage.removeItem('buildops_selected_project_id');
     navigateTo('/login');
   };
 
@@ -345,6 +352,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     const newSessionId = `sess-${Date.now()}`;
     setActiveSessionId(newSessionId);
+    selectProject(null); // Clear selected project on MFA verify!
 
     const newSession: IAMSession = {
       id: newSessionId,

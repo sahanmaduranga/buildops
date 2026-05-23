@@ -389,4 +389,118 @@ export interface RateCategory {
   count?: number;
 }
 
+export interface Subcontractor {
+  id: string;
+  code: string;
+  name: string;
+  registrationNumber: string;
+  taxNumber: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  address: string;
+  specialty: string; // Civil, Electrical, HVAC, etc.
+  bankName: string;
+  bankAccountNumber: string;
+  notes: string;
+  status: 'Active' | 'Inactive';
+  rating: number; // 1-5
+  activeProjectsCount: number;
+}
+
+export interface SubcontractBOQAllocation {
+  boqItemId: string;
+  allocatedQty: number;
+  rate: number;
+  amount: number;
+}
+
+export interface SubcontractPackage {
+  id: string;
+  code: string;
+  name: string;
+  projectId: string;
+  subcontractorId: string;
+  packageType: string; // e.g. Civil, Structural
+  startDate: string;
+  endDate: string;
+  originalContractValue: number;
+  revisedContractValue: number;
+  retentionPercentage: number;
+  advancePercentage: number;
+  recoveryPercentage: number; // e.g. 15% recovery per IPC until advance is paid off
+  status: 'Draft' | 'Active' | 'On Hold' | 'Completed' | 'Closed';
+  description: string;
+  allocations: SubcontractBOQAllocation[];
+}
+
+export interface SubcontractAgreement {
+  id: string;
+  agreementNo: string;
+  agreementDate: string;
+  packageId: string;
+  subcontractorId: string;
+  projectId: string;
+  contractValue: number;
+  retentionPercentage: number;
+  advancePercentage: number;
+  recoveryPercentage: number;
+  paymentTerms: string;
+  remarks: string;
+  status: 'Draft' | 'Signed' | 'Active' | 'Closed' | 'Terminated';
+  documents: {
+    id: string;
+    name: string;
+    version: string;
+    uploadedAt: string;
+    uploadedBy: string;
+    fileType: string;
+  }[];
+}
+
+export interface SubcontractIPCItem {
+  boqItemId: string;
+  previousQty: number;
+  currentQty: number;
+  totalQty: number;
+  rate: number;
+}
+
+export interface SubcontractIPC {
+  id: string;
+  ipcNo: string;
+  packageId: string;
+  subcontractorId: string;
+  projectId: string;
+  period: string; // e.g. "May 2026"
+  date: string;
+  status: 'Draft' | 'Submitted' | 'Reviewed' | 'Approved' | 'Paid';
+  items: SubcontractIPCItem[];
+  certifiedAmount: number; // Sum of current progress amounts itemized
+  grossProgressAmount?: number; // Cumulative total progress value
+  previousCertifiedAmount?: number; // Total previous certified
+  retentionAmount: number; // Certified * Ret %
+  advanceRecoveryAmount: number; // Certified * Recovery %
+  otherDeductions: number;
+  deductionNotes?: string;
+  netAmount: number; // Net Payable = certified - retention - advanceRecovery - otherDeductions
+  attachments: { id: string; name: string; fileType: string }[];
+}
+
+export interface SubcontractVariation {
+  id: string;
+  voNumber: string;
+  packageId: string;
+  subcontractorId: string;
+  projectId: string;
+  description: string;
+  reason: string;
+  amount: number;
+  boqReferenceCode?: string;
+  status: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
+  submittedDate: string;
+  approvedDate: string;
+  attachment?: { name: string; fileType: string };
+}
+
 

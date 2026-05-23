@@ -51,7 +51,6 @@ interface SidebarItemProps {
   collapsed?: boolean;
   subItems?: { id: string, label: string }[];
   activeSubTab?: string;
-  activeTab?: string;
   onSubItemClick?: (id: string) => void;
   expanded?: boolean;
   onToggleExpand?: () => void;
@@ -65,8 +64,7 @@ const SidebarItem = ({
   onClick, 
   collapsed, 
   subItems, 
-  activeSubTab,
-  activeTab,
+  activeSubTab, 
   onSubItemClick,
   expanded,
   onToggleExpand
@@ -117,8 +115,7 @@ const SidebarItem = ({
               onClick={() => onSubItemClick?.(sub.id)}
               className={cn(
                 "py-1.5 px-3 rounded-md text-left text-xs transition-colors hover:text-white font-medium cursor-pointer",
-                // Check if this submenu item is active (either via activeSubTab or activeTab matching the sub.id)
-                (activeSubTab === sub.id || activeTab === sub.id)
+                activeSubTab === sub.id 
                   ? "text-primary-400 font-bold" 
                   : "text-slate-400"
               )}
@@ -165,13 +162,6 @@ export const AppLayout = ({
   const isWizardOpen = isWizardOpenProp !== undefined ? isWizardOpenProp : isWizardOpenLocal;
   const setIsWizardOpen = setIsWizardOpenProp !== undefined ? setIsWizardOpenProp : setIsWizardOpenLocal;
 
-  // Auto-expand Administration menu when an admin page is active
-  React.useEffect(() => {
-    if (activeTab.startsWith('admin-') && !expandedMenus.includes('administration')) {
-      setExpandedMenus([...expandedMenus, 'administration']);
-    }
-  }, [activeTab]);
-
   const toggleMenu = (id: string) => {
     if (expandedMenus.includes(id)) {
       setExpandedMenus(expandedMenus.filter(m => m !== id));
@@ -184,22 +174,24 @@ export const AppLayout = ({
   const portfolioMenu = [
     { id: 'dashboard', label: 'Portfolio Dashboard', icon: LayoutDashboard },
     { id: 'projects', label: 'All Projects', icon: Building2 },
-    { id: 'archived-projects', label: 'Archived Projects', icon: Archive },
-    {
-      id: 'administration',
-      label: 'Administration',
-      icon: ShieldAlert,
+    { 
+      id: 'tender-management', 
+      label: 'Tender Management', 
+      icon: Briefcase,
       subItems: [
-        { id: 'admin-users', label: 'User Management' },
-        { id: 'admin-roles', label: 'Roles & Permissions' },
-        { id: 'admin-project-access', label: 'Project Access' },
-        { id: 'admin-invitations', label: 'Invitations' },
-        { id: 'admin-security', label: 'Security Rules' },
-        { id: 'admin-audit-logs', label: 'Audit Logs' },
-        { id: 'admin-branding', label: 'Tenant Branding' },
-        { id: 'admin-auth-policies', label: 'Auth Policies' },
+        { id: 'tender-dashboard', label: 'Dashboard' },
+        { id: 'tender-opportunities', label: 'Tender Opportunities' },
+        { id: 'tender-boq', label: 'Tender BOQ' },
+        { id: 'tender-estimation', label: 'Estimation' },
+        { id: 'tender-supplier-quotes', label: 'Supplier Quotations' },
+        { id: 'tender-subcontractor-quotes', label: 'Subcontractor Quotations' },
+        { id: 'tender-revisions', label: 'Tender Revisions' },
+        { id: 'tender-bid-submission', label: 'Bid Submission' },
+        { id: 'tender-reports', label: 'Tender Reports' }
       ]
     },
+    { id: 'subcontractor-registry', label: 'Subcontractor Registry', icon: Users },
+    { id: 'archived-projects', label: 'Archived Projects', icon: Archive },
   ];
 
   const workspaceMenu = [
@@ -258,7 +250,8 @@ export const AppLayout = ({
         { id: 'master-regions', label: 'Regions' },
         { id: 'master-periods', label: 'Periods' },
         { id: 'master-units', label: 'Units' },
-        { id: 'master-types', label: 'Resource Types' }
+        { id: 'master-types', label: 'Resource Types' },
+        { id: 'subcontractor-registry', label: 'Subcontractor Registry' }
       ]
     },
     { 
@@ -340,25 +333,42 @@ export const AppLayout = ({
         { id: 'procurement-reports', label: 'SCM Reports Hub' }
       ]
     },
+    { 
+      id: 'subcontract', 
+      label: 'Subcontract Management', 
+      icon: Briefcase,
+      subItems: [
+        { id: 'subcontract-dashboard', label: 'Dashboard' },
+        { id: 'subcontract-packages', label: 'Packages & Allocations' },
+        { id: 'subcontract-agreements', label: 'Agreements' },
+        { id: 'subcontract-ipc', label: 'IPC / Billing' },
+        { id: 'subcontract-variations', label: 'Variation Orders' },
+        { id: 'subcontract-progress', label: 'Progress S-Curve' },
+        { id: 'subcontract-reports', label: 'Commercial Reports' }
+      ]
+    },
     { id: 'project-documents', label: 'Project Documents', icon: FolderOpen },
     { id: 'project-calendar', label: 'Project Calendar', icon: Calendar },
     { id: 'project-teams', label: 'Project Teams', icon: Users },
     { id: 'project-settings', label: 'Project Settings', icon: Settings },
-    {
-      id: 'administration',
-      label: 'Administration',
-      icon: ShieldAlert,
+  ];
+
+  const adminMenu = [
+    { 
+      id: 'administrator', 
+      label: 'Administrator', 
+      icon: Shield,
       subItems: [
         { id: 'admin-users', label: 'User Management' },
         { id: 'admin-roles', label: 'Roles & Permissions' },
-        { id: 'admin-project-access', label: 'Project Access' },
-        { id: 'admin-invitations', label: 'Invitations' },
-        { id: 'admin-security', label: 'Security Rules' },
-        { id: 'admin-audit-logs', label: 'Audit Logs' },
+        { id: 'admin-project-access', label: 'Project Access Dashboard' },
+        { id: 'admin-invitations', label: 'Invitations Management' },
+        { id: 'admin-security', label: 'General Security Rules' },
+        { id: 'admin-audit-logs', label: 'System Audit Logs' },
         { id: 'admin-branding', label: 'Tenant Branding' },
         { id: 'admin-auth-policies', label: 'Auth Policies' },
       ]
-    },
+    }
   ];
 
   const currentMenu = currentProject ? workspaceMenu : portfolioMenu;
@@ -455,21 +465,13 @@ export const AppLayout = ({
               key={item.id}
               icon={item.icon}
               label={item.label}
-              active={activeTab === item.id || (item.id === 'administration' && activeTab.startsWith('admin-'))}
+              active={activeTab === item.id}
               collapsed={collapsed}
               subItems={(item as any).subItems}
               activeSubTab={activeSubTab}
-              activeTab={activeTab}
               onSubItemClick={(subId) => {
-                // For administration submenu, set activeTab to the actual admin page (e.g., 'admin-users')
-                if (item.id === 'administration') {
-                  setActiveTab(subId);
-                  setActiveSubTab?.('');
-                } else {
-                  // For other menus with subItems, keep the parent as activeTab
-                  setActiveTab(item.id);
-                  setActiveSubTab?.(subId);
-                }
+                setActiveTab(item.id);
+                setActiveSubTab?.(subId);
               }}
               expanded={expandedMenus.includes(item.id)}
               onToggleExpand={() => toggleMenu(item.id)}
@@ -481,6 +483,38 @@ export const AppLayout = ({
               }}
             />
           ))}
+
+          {/* Admin Tools menu split */}
+          <div className="pt-4 border-t border-white/5 my-2">
+            {!collapsed && (
+              <div className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400">
+                Administration Core
+              </div>
+            )}
+            {adminMenu.map((item) => (
+              <SidebarItem
+                key={item.id}
+                icon={item.icon}
+                label={item.label}
+                active={activeTab === item.id}
+                collapsed={collapsed}
+                subItems={(item as any).subItems}
+                activeSubTab={activeSubTab}
+                onSubItemClick={(subId) => {
+                  setActiveTab(item.id);
+                  setActiveSubTab?.(subId);
+                }}
+                expanded={expandedMenus.includes(item.id)}
+                onToggleExpand={() => toggleMenu(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  if ((item as any).subItems) {
+                    if (!expandedMenus.includes(item.id)) toggleMenu(item.id);
+                  }
+                }}
+              />
+            ))}
+          </div>
         </nav>
 
         {/* Sidebar Footer settings */}
@@ -554,21 +588,13 @@ export const AppLayout = ({
                     key={item.id}
                     icon={item.icon}
                     label={item.label}
-                    active={activeTab === item.id || (item.id === 'administration' && activeTab.startsWith('admin-'))}
+                    active={activeTab === item.id}
                     collapsed={false}
                     subItems={(item as any).subItems}
                     activeSubTab={activeSubTab}
-                    activeTab={activeTab}
                     onSubItemClick={(subId) => {
-                      // For administration submenu, set activeTab to the actual admin page (e.g., 'admin-users')
-                      if (item.id === 'administration') {
-                        setActiveTab(subId);
-                        setActiveSubTab?.('');
-                      } else {
-                        // For other menus with subItems, keep the parent as activeTab
-                        setActiveTab(item.id);
-                        setActiveSubTab?.(subId);
-                      }
+                      setActiveTab(item.id);
+                      setActiveSubTab?.(subId);
                       setIsMobileMenuOpen(false);
                     }}
                     expanded={expandedMenus.includes(item.id)}
@@ -583,6 +609,38 @@ export const AppLayout = ({
                     }}
                   />
                 ))}
+
+                <div className="pt-3 border-t border-white/5 my-2">
+                  <div className="px-4 py-1.5 text-[10.5px] uppercase font-black tracking-wider text-slate-400">
+                    Administration Core
+                  </div>
+                  {adminMenu.map((item) => (
+                    <SidebarItem
+                      key={item.id}
+                      icon={item.icon}
+                      label={item.label}
+                      active={activeTab === item.id}
+                      collapsed={false}
+                      subItems={(item as any).subItems}
+                      activeSubTab={activeSubTab}
+                      onSubItemClick={(subId) => {
+                        setActiveTab(item.id);
+                        setActiveSubTab?.(subId);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      expanded={expandedMenus.includes(item.id)}
+                      onToggleExpand={() => toggleMenu(item.id)}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        if ((item as any).subItems) {
+                          if (!expandedMenus.includes(item.id)) toggleMenu(item.id);
+                        } else {
+                          setIsMobileMenuOpen(false);
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
               </nav>
             </motion.aside>
           </>
@@ -614,7 +672,17 @@ export const AppLayout = ({
                   {activeSubTab && (
                     <>
                       <ChevronRight size={13} className="text-slate-300" />
-                      <span className="text-slate-400 capitalize">{activeSubTab.replace('sot-', '').replace('progress-', '').replace('-', ' ')}</span>
+                      <span className="text-slate-400 capitalize">{activeSubTab.replace('admin-', '').replace('sot-', '').replace('progress-', '').replace('-', ' ')}</span>
+                    </>
+                  )}
+                </>
+              ) : activeTab === 'administrator' ? (
+                <>
+                  <span className="text-slate-850 text-slate-800">Administrator</span>
+                  {activeSubTab && (
+                    <>
+                      <ChevronRight size={13} className="text-slate-300" />
+                      <span className="text-slate-400 capitalize">{activeSubTab.replace('admin-', '').replace('-', ' ')}</span>
                     </>
                   )}
                 </>

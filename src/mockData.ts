@@ -1,4 +1,4 @@
-import { ResourceType, SOTStatus, TaskType, TaskPriority, DependencyType, type Resource, type RateAnalysis, type BOQItem, type Region, type Period, type PriceMatrixEntry, type SOT, type SOTBaseline, type Task, type DelayRecord, type SitePhoto, type ProductivityMetric, type ProgressUpdate } from './types.ts';
+import { ResourceType, SOTStatus, TaskType, TaskPriority, DependencyType, type Resource, type RateAnalysis, type BOQItem, type Region, type Period, type PriceMatrixEntry, type SOT, type SOTBaseline, type Task, type DelayRecord, type SitePhoto, type ProductivityMetric, type ProgressUpdate, type Subcontractor, type SubcontractPackage, type SubcontractAgreement, type SubcontractIPC, type SubcontractVariation } from './types.ts';
 
 export const MOCK_REGIONS: Region[] = [
   { id: '1', name: 'Riyadh Central', code: 'RIY-C', description: 'Central region covering the capital city.', status: 'Active' },
@@ -445,5 +445,403 @@ export const MOCK_PROGRESS_UPDATES: ProgressUpdate[] = [
       { id: 'app-3', role: 'Site Engineer', name: 'Michael Brown', status: 'Approved', timestamp: '2024-06-22T17:00:00Z' },
       { id: 'app-4', role: 'Project Manager', name: 'Sarah Johnson', status: 'Pending' }
     ]
+  }
+];
+
+export const MOCK_SUBCONTRACTORS: Subcontractor[] = [
+  {
+    id: 'sub-con-1',
+    code: 'SBC-ICC-01',
+    name: 'International Construction Consortium (Sri Lanka)',
+    registrationNumber: 'PV-12495',
+    taxNumber: 'T-8521094-LK',
+    contactPerson: 'Mr. Harsha De Silva',
+    phone: '+94 11 282 4500',
+    email: 'h.desilva@icc.lk',
+    address: 'No. 57, S. De S. Jayasinghe Mawatha, Kohuwala, Sri Lanka',
+    specialty: 'Civil',
+    bankName: 'Commercial Bank of Ceylon',
+    bankAccountNumber: '1000204951',
+    notes: 'Premier grade CS2 contractor specializing in substructure, piling, and major framing structures.',
+    status: 'Active',
+    rating: 5,
+    activeProjectsCount: 2
+  },
+  {
+    id: 'sub-con-2',
+    code: 'SBC-HABTOOR-02',
+    name: 'Al Habtoor MEP Contractors',
+    registrationNumber: 'REG-D-5140922',
+    taxNumber: 'VAT-1004928501',
+    contactPerson: 'Eng. Amjad Al-Masri',
+    phone: '+971 4 399 2222',
+    email: 'amjad.m@habtoormep.ae',
+    address: 'Al Habtoor Business Tower, Dubai Marina, UAE',
+    specialty: 'Electrical',
+    bankName: 'Emirates NBD',
+    bankAccountNumber: '01540922851',
+    notes: 'Tier 1 MEP subcontractor. Complete HVAC, automation, high voltage substations, and mechanical piping.',
+    status: 'Active',
+    rating: 4.5,
+    activeProjectsCount: 1
+  },
+  {
+    id: 'sub-con-3',
+    code: 'SBC-LANKA-PLUMB',
+    name: 'Lanka Plumbing & HVAC Engineering (Pvt) Ltd',
+    registrationNumber: 'PV-82054',
+    taxNumber: 'T-10023415-LK',
+    contactPerson: 'Susantha Ranasinghe',
+    phone: '+94 11 410 2000',
+    email: 'ranasinghe@lankaplumbing.lk',
+    address: 'No. 12/A, Navinna Road, Maharagama, Sri Lanka',
+    specialty: 'Plumbing',
+    bankName: 'Hatton National Bank',
+    bankAccountNumber: '0032958104',
+    notes: 'Well respected plumbing specialist in luxury high-rise developments.',
+    status: 'Active',
+    rating: 4.2,
+    activeProjectsCount: 1
+  },
+  {
+    id: 'sub-con-4',
+    code: 'SBC-ALUM-AL',
+    name: 'Arabian Aluminum & Glazing LLC',
+    registrationNumber: 'REG-U-90214',
+    taxNumber: 'VAT-9031204',
+    contactPerson: 'Bashar Othman',
+    phone: '+971 6 543 1111',
+    email: 'b.othman@arabianaluminum.com',
+    address: 'Industrial Area 5, Sharjah, UAE',
+    specialty: 'Aluminum',
+    bankName: 'Abu Dhabi Commercial Bank',
+    bankAccountNumber: '124958120001',
+    notes: 'Curtain walls, high performance unitized glazing systems, and decorative louvres.',
+    status: 'Inactive',
+    rating: 3.8,
+    activeProjectsCount: 0
+  }
+];
+
+export const MOCK_SUBCONTRACT_PACKAGES: SubcontractPackage[] = [
+  {
+    id: 'pkg-1',
+    code: 'PKG-SRT-CIVIL-01',
+    name: 'Bulk Earthworks and Piling Structural Works',
+    projectId: 'proj-1',
+    subcontractorId: 'sub-con-1',
+    packageType: 'Civil',
+    startDate: '2024-06-01',
+    endDate: '2024-09-30',
+    originalContractValue: 25810.00,
+    revisedContractValue: 28810.00, // includes variations
+    retentionPercentage: 10,
+    advancePercentage: 20,
+    recoveryPercentage: 15,
+    status: 'Active',
+    description: 'Bulk excavating, leveling, shoring system installation and sub-base grading for Block A and B basement structural layout.',
+    allocations: [
+      {
+        boqItemId: 'item-2-2-a-1',
+        allocatedQty: 1000,
+        rate: 8.75,
+        amount: 8750
+      },
+      {
+        boqItemId: 'item-3-1-a-1',
+        allocatedQty: 100,
+        rate: 170.60,
+        amount: 17060
+      }
+    ]
+  },
+  {
+    id: 'pkg-2',
+    code: 'PKG-SRT-MEP-01',
+    name: 'Substation Core Cabling and Electrical Trays',
+    projectId: 'proj-2',
+    subcontractorId: 'sub-con-2',
+    packageType: 'Electrical',
+    startDate: '2024-08-15',
+    endDate: '2025-01-30',
+    originalContractValue: 130000.00,
+    revisedContractValue: 130000.00,
+    retentionPercentage: 10,
+    advancePercentage: 15,
+    recoveryPercentage: 15,
+    status: 'Draft',
+    description: 'Provision of cabling trays, trenching lining works, and main electrical transformer high voltage cable installations.',
+    allocations: [
+      {
+        boqItemId: 'belec-item-2',
+        allocatedQty: 1000,
+        rate: 45.00,
+        amount: 45000
+      },
+      {
+        boqItemId: 'belec-item-1',
+        allocatedQty: 1,
+        rate: 85000.00,
+        amount: 85000
+      }
+    ]
+  },
+  {
+    id: 'pkg-3',
+    code: 'PKG-NH-EARTH-01',
+    name: 'Highway Grading & Site Leveling Works',
+    projectId: 'proj-3',
+    subcontractorId: 'sub-con-1',
+    packageType: 'Civil',
+    startDate: '2024-04-01',
+    endDate: '2024-12-15',
+    originalContractValue: 2800000.00,
+    revisedContractValue: 2815000.00,
+    retentionPercentage: 5,
+    advancePercentage: 10,
+    recoveryPercentage: 10,
+    status: 'Active',
+    description: 'Bulk site excavation in hard rock using heavy hydraulic breakers and subgrade stabilization.',
+    allocations: [
+      {
+        boqItemId: 'bearth-item-1',
+        allocatedQty: 80000,
+        rate: 35.00,
+        amount: 2800000
+      }
+    ]
+  },
+  {
+    id: 'pkg-4',
+    code: 'PKG-JR-PLUMBING-01',
+    name: 'Villas Plumbing & Sanitary Ware Installs',
+    projectId: 'proj-4',
+    subcontractorId: 'sub-con-3',
+    packageType: 'Plumbing',
+    startDate: '2026-10-01',
+    endDate: '2027-05-30',
+    originalContractValue: 0.00,
+    revisedContractValue: 0.00,
+    retentionPercentage: 10,
+    advancePercentage: 20,
+    recoveryPercentage: 15,
+    status: 'Draft',
+    description: 'Supply and installation of copper domestic water tubes, luxury bathroom fittings, and greywater recycling piping.',
+    allocations: []
+  }
+];
+
+export const MOCK_SUBCONTRACT_AGREEMENTS: SubcontractAgreement[] = [
+  {
+    id: 'agr-1',
+    agreementNo: 'AGR-SRT-CIVIL-2024-013',
+    agreementDate: '2024-05-20',
+    packageId: 'pkg-1',
+    subcontractorId: 'sub-con-1',
+    projectId: 'proj-1',
+    contractValue: 25810.00,
+    retentionPercentage: 10,
+    advancePercentage: 20,
+    recoveryPercentage: 15,
+    paymentTerms: '30-day backing certified invoice cycle, VAT exclusive, subjected to 10% retention hold up to limit of 5% contract value.',
+    remarks: 'Signed, approved, stamp-sealed, and mobilized on 25th May 2024.',
+    status: 'Active',
+    documents: [
+      {
+        id: 'doc-sbc-1',
+        name: 'ICC_Shoring_Excavation_Signed_Agreement_Final.pdf',
+        version: '1.0',
+        uploadedAt: '2024-05-21T08:00:00Z',
+        uploadedBy: 'Sarah Johnson',
+        fileType: 'pdf'
+      },
+      {
+        id: 'doc-sbc-2',
+        name: 'Bank_Guarantee_AdvancePayment_ICC.pdf',
+        version: '1.0',
+        uploadedAt: '2024-05-23T11:45:00Z',
+        uploadedBy: 'Youhana Mikhail',
+        fileType: 'pdf'
+      }
+    ]
+  },
+  {
+    id: 'agr-2',
+    agreementNo: 'AGR-NEOM-CIVIL-2024-041',
+    agreementDate: '2024-03-22',
+    packageId: 'pkg-3',
+    subcontractorId: 'sub-con-1',
+    projectId: 'proj-3',
+    contractValue: 2800000.00,
+    retentionPercentage: 5,
+    advancePercentage: 10,
+    recoveryPercentage: 10,
+    paymentTerms: '21-day certified cycle, backed by performance guarantee bond and matching site measures.',
+    remarks: 'Signed and executed on-site. Work is currently 35% completed.',
+    status: 'Active',
+    documents: [
+      {
+        id: 'doc-sbc-3',
+        name: 'NEOM_Grading_Signed_Agreement_Stamped.pdf',
+        version: '1.0',
+        uploadedAt: '2024-03-25T14:10:00Z',
+        uploadedBy: 'Sarah Johnson',
+        fileType: 'pdf'
+      }
+    ]
+  }
+];
+
+export const MOCK_SUBCONTRACT_IPCS: SubcontractIPC[] = [
+  {
+    id: 'ipc-1',
+    ipcNo: 'SBC-IPC-001',
+    packageId: 'pkg-1',
+    subcontractorId: 'sub-con-1',
+    projectId: 'proj-1',
+    period: '2024 Q2',
+    date: '2024-06-30',
+    status: 'Approved',
+    items: [
+      {
+        boqItemId: 'item-2-2-a-1',
+        previousQty: 0,
+        currentQty: 400,
+        totalQty: 400,
+        rate: 8.75
+      },
+      {
+        boqItemId: 'item-3-1-a-1',
+        previousQty: 0,
+        currentQty: 25,
+        totalQty: 25,
+        rate: 170.60
+      }
+    ],
+    certifiedAmount: 7765.00,
+    grossProgressAmount: 7765.00,
+    previousCertifiedAmount: 0.00,
+    retentionAmount: 776.50,
+    advanceRecoveryAmount: 1164.75,
+    otherDeductions: 150.00,
+    deductionNotes: 'Deducted $150 for non-compliant site scaffold safety barrier violation on 14th June.',
+    netAmount: 5673.75,
+    attachments: [
+      { id: 'att-ipc-1', name: 'MeasurementSheet_June24_ICC.xlsx', fileType: 'xlsx' },
+      { id: 'att-ipc-2', name: 'InspectionReport_FoundationConcrete_Approved.pdf', fileType: 'pdf' }
+    ]
+  },
+  {
+    id: 'ipc-2',
+    ipcNo: 'SBC-IPC-002',
+    packageId: 'pkg-1',
+    subcontractorId: 'sub-con-1',
+    projectId: 'proj-1',
+    period: '2024 Q3',
+    date: '2024-07-31',
+    status: 'Submitted',
+    items: [
+      {
+        boqItemId: 'item-2-2-a-1',
+        previousQty: 400,
+        currentQty: 350,
+        totalQty: 750,
+        rate: 8.75
+      },
+      {
+        boqItemId: 'item-3-1-a-1',
+        previousQty: 25,
+        currentQty: 30,
+        totalQty: 55,
+        rate: 170.60
+      }
+    ],
+    certifiedAmount: 8180.50,
+    grossProgressAmount: 15945.50,
+    previousCertifiedAmount: 7765.00,
+    retentionAmount: 818.05,
+    advanceRecoveryAmount: 1227.08,
+    otherDeductions: 0.00,
+    netAmount: 6135.37,
+    attachments: [
+      { id: 'att-ipc-3', name: 'Measurement_Sheet_July_ICC.xlsx', fileType: 'xlsx' }
+    ]
+  },
+  {
+    id: 'ipc-3',
+    ipcNo: 'SBC-NEOM-IPC-001',
+    packageId: 'pkg-3',
+    subcontractorId: 'sub-con-1',
+    projectId: 'proj-3',
+    period: '2024 Q2',
+    date: '2024-05-15',
+    status: 'Approved',
+    items: [
+      {
+        boqItemId: 'bearth-item-1',
+        previousQty: 0,
+        currentQty: 20000,
+        totalQty: 20000,
+        rate: 35.00
+      }
+    ],
+    certifiedAmount: 700000.00,
+    grossProgressAmount: 700000.00,
+    previousCertifiedAmount: 0.00,
+    retentionAmount: 35000.00,
+    advanceRecoveryAmount: 70000.00,
+    otherDeductions: 0.00,
+    netAmount: 595000.00,
+    attachments: [
+      { id: 'att-ipc-4', name: 'NEOM_Sect4_QuantityMeasurements.xlsx', fileType: 'xlsx' }
+    ]
+  }
+];
+
+export const MOCK_SUBCONTRACT_VARIATIONS: SubcontractVariation[] = [
+  {
+    id: 'var-1',
+    voNumber: 'SBC-VO-PKG1-001',
+    packageId: 'pkg-1',
+    subcontractorId: 'sub-con-1',
+    projectId: 'proj-1',
+    description: 'Adverse Mud and Sub-soil Shoring Strengthening',
+    reason: 'Encountered unexpected high-water table mud during pile excavation. Required immediate clay stabilization and heavy steel shoring plates.',
+    amount: 3000.00,
+    boqReferenceCode: '2.2.A.1',
+    status: 'Approved',
+    submittedDate: '2024-06-12',
+    approvedDate: '2024-06-18',
+    attachment: { name: 'Shoring_VO_Justification_ICC.pdf', fileType: 'pdf' }
+  },
+  {
+    id: 'var-2',
+    voNumber: 'SBC-VO-PKG1-002',
+    packageId: 'pkg-1',
+    subcontractorId: 'sub-con-1',
+    projectId: 'proj-1',
+    description: 'Additional Dewatering Pumps Overtime Operation',
+    reason: 'Continuous pumping of spring water for foundation concrete pit.',
+    amount: 1450.00,
+    boqReferenceCode: '2.2.B.1',
+    status: 'Pending Approval',
+    submittedDate: '2024-07-20',
+    approvedDate: '',
+    attachment: { name: 'Overtime_Dewatering_July.pdf', fileType: 'pdf' }
+  },
+  {
+    id: 'var-3',
+    voNumber: 'SBC-VO-PKG3-001',
+    packageId: 'pkg-3',
+    subcontractorId: 'sub-con-1',
+    projectId: 'proj-3',
+    description: 'Extra site rock breaking equipment hire',
+    reason: 'Encountered ultra-hard basalt rock strata requiring high-impact hydraulic breakers.',
+    amount: 15000.00,
+    boqReferenceCode: '1.1.1',
+    status: 'Approved',
+    submittedDate: '2024-05-02',
+    approvedDate: '2024-05-10',
+    attachment: { name: 'BasaltStrata_Geology_Report.pdf', fileType: 'pdf' }
   }
 ];
