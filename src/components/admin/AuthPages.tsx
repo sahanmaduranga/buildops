@@ -58,8 +58,10 @@ export const AuthPages = () => {
           localStorage.setItem('iam_tmp_mfa_user', JSON.stringify(response.user));
           navigateTo('/mfa-verification');
         } else {
-          // Send to main workspace portal on success
-          navigateTo('/dashboard');
+          // Clear any previously selected project to show portfolio dashboard
+          localStorage.removeItem('buildops_selected_project_id');
+          // Send to portfolio dashboard on success
+          navigateTo('/portfolio');
         }
       } else {
         setErrorMsg(response.error || 'Identity credentials validation failed.');
@@ -142,7 +144,9 @@ export const AuthPages = () => {
         const response = await mockVerifyMfa(fullyEnteredCode);
         if (response.success) {
           localStorage.removeItem('iam_tmp_mfa_user');
-          navigateTo('/dashboard');
+          // Clear any previously selected project to show portfolio dashboard
+          localStorage.removeItem('buildops_selected_project_id');
+          navigateTo('/portfolio');
         }
       } catch (err: any) {
         setErrorMsg(err.message || 'TOTP Validation failed.');
@@ -169,13 +173,19 @@ export const AuthPages = () => {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
 
       {/* Center Interactive Form Card Container */}
-      <div className="w-full max-w-[420px] md:max-w-[840px] bg-[#0e1624]/90 backdrop-blur-md border border-[#19273c] rounded-2xl shadow-2xl relative text-[13px] text-slate-300 flex flex-col md:flex-row overflow-hidden animate-fade-in">
+      <div className="w-full max-w-[400px] md:max-w-[785px] bg-[#0e1624]/90 backdrop-blur-md border border-[#19273c] rounded-2xl shadow-2xl relative text-[13px] text-slate-300 flex flex-col md:flex-row overflow-hidden animate-fade-in mx-auto">
         {/* Card Top Branding Accent line */}
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-600 via-emerald-600 to-indigo-600 opacity-90 rounded-t-2xl z-10" />
-
+ 
         {/* 1. Integrated Left Information Panel - Hidden on mobile, beautiful side panel on desktop */}
-        <div className="hidden md:flex md:w-[360px] bg-[#0c1221]/80 border-r border-[#19273c]/60 p-8 flex-col justify-between relative overflow-hidden select-none shrink-0">
-          <div className="absolute inset-0 bg-gradient-to-tr from-primary-600/5 to-cyan-500/5 opacity-40" />
+        <div className="hidden md:flex md:w-[350px] bg-[#0c1221]/90 border-r border-[#19273c]/60 p-8 flex-col justify-between relative overflow-hidden select-none shrink-0">
+          <img
+            src="/src/assets/images/enterprise_construction_1779512439514.png"
+            alt="BuildOps Professional Background"
+            referrerPolicy="no-referrer"
+            className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-lighten pointer-events-none"
+          />
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#070b13]/95 via-[#0c1221]/80 to-primary-950/40 opacity-95" />
           <div className="absolute top-[-100px] right-[-100px] w-[220px] h-[220px] rounded-full bg-primary-600/5 blur-3xl pointer-events-none" />
           <div className="absolute bottom-[-100px] left-[-100px] w-[220px] h-[220px] rounded-full bg-indigo-600/5 blur-3xl pointer-events-none" />
 
@@ -228,7 +238,7 @@ export const AuthPages = () => {
         </div>
 
         {/* 2. Interactive Form Panel (Right side or Full pane on mobile) */}
-        <div className="flex-1 p-7 sm:p-10 flex flex-col justify-center space-y-5 min-w-0 relative">
+        <div className="flex-1 p-5 md:p-8 flex flex-col justify-center space-y-4 min-w-0 relative">
           
           {errorMsg && (
             <div className="p-3 bg-rose-950/40 border border-rose-900/50 text-rose-300 rounded-xl text-xs font-semibold leading-relaxed animate-shake">
@@ -275,7 +285,7 @@ export const AuthPages = () => {
                   placeholder="robert.chen@buildops.com"
                   value={identity}
                   onChange={(e) => setIdentity(e.target.value)}
-                  className="w-full py-2 px-3 bg-[#070b13] border border-[#1e304b] text-white focus:outline-none focus:border-primary-500 rounded-xl font-semibold shadow-sm placeholder:text-slate-600 text-xs"
+                  className="w-full py-2.5 px-3.5 bg-[#070b13] border border-[#1e304b] text-white focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-xl font-semibold shadow-sm placeholder:text-slate-600 text-xs transition-all"
                   id="login-identity-field"
                   disabled={isLoading}
                 />
@@ -301,14 +311,14 @@ export const AuthPages = () => {
                     placeholder="••••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full py-2 pl-3 pr-9 bg-[#070b13] border border-[#1e304b] text-white focus:outline-none focus:border-primary-500 rounded-xl font-semibold shadow-sm placeholder:text-slate-650 text-xs"
+                    className="w-full py-2.5 pl-3.5 pr-10 bg-[#070b13] border border-[#1e304b] text-white focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-xl font-semibold shadow-sm placeholder:text-slate-650 text-xs transition-all"
                     id="login-password-field"
                     disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-slate-500 hover:text-white cursor-pointer"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
                   >
                     {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -316,13 +326,13 @@ export const AuthPages = () => {
               </div>
 
               {/* Remember me control */}
-              <div className="flex items-center justify-between py-0.5">
+              <div className="flex items-center justify-between py-1">
                 <label className="flex items-center gap-2 text-[11px] text-slate-400 font-semibold cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="rounded border-[#1e304b] bg-[#070b13] text-primary-600 focus:ring-primary-500"
+                    className="rounded border-[#1e304b] bg-[#070b13] text-primary-600 focus:ring-primary-500 w-4 h-4"
                   />
                   <span>Authorize secure login directory parameters</span>
                 </label>
@@ -331,7 +341,7 @@ export const AuthPages = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-extrabold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer font-sans text-xs"
+                className="w-full py-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-extrabold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer font-sans text-xs"
               >
                 {isLoading ? 'Authenticating Gateway...' : 'Submit Security Credentials'}
                 <ArrowRight size={13} />

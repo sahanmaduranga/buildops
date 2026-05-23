@@ -314,7 +314,7 @@ export const ProjectProvider = ({ children }: { children: React.ReactNode }) => 
   });
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
-    return localStorage.getItem('buildops_selected_project_id') || null; // Start with no project selected - show portfolio dashboard
+    return localStorage.getItem('buildops_selected_project_id') || null; // Default to null for All Projects Dashboard selection
   });
 
   const [recentProjectIds, setRecentProjectIds] = useState<string[]>(() => {
