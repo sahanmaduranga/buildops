@@ -58,10 +58,8 @@ export const AuthPages = () => {
           localStorage.setItem('iam_tmp_mfa_user', JSON.stringify(response.user));
           navigateTo('/mfa-verification');
         } else {
-          // Clear any previously selected project to show portfolio dashboard
-          localStorage.removeItem('buildops_selected_project_id');
-          // Send to portfolio dashboard on success
-          navigateTo('/portfolio');
+          // Send to main workspace portal on success
+          navigateTo('/dashboard');
         }
       } else {
         setErrorMsg(response.error || 'Identity credentials validation failed.');
@@ -144,9 +142,7 @@ export const AuthPages = () => {
         const response = await mockVerifyMfa(fullyEnteredCode);
         if (response.success) {
           localStorage.removeItem('iam_tmp_mfa_user');
-          // Clear any previously selected project to show portfolio dashboard
-          localStorage.removeItem('buildops_selected_project_id');
-          navigateTo('/portfolio');
+          navigateTo('/dashboard');
         }
       } catch (err: any) {
         setErrorMsg(err.message || 'TOTP Validation failed.');

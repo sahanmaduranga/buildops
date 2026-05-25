@@ -427,178 +427,628 @@ export const TenderManagementShell: React.FC<{
             )}
           </div>
         </div>
+      )}      {/* Integrated Workspace Architecture */}
+      {!selectedTenderId && activeSubTab !== 'tender-dashboard' && (
+        <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
+          
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-2 border-b border-slate-100">
+            <div className="space-y-1">
+              <span className="text-[11px] uppercase tracking-widest font-black text-slate-400">Pre-Contract Division</span>
+              <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none flex items-center gap-2">
+                <Briefcase className="text-primary-600" size={20} /> Tender Directory Deck
+              </h2>
+              <p className="text-slate-550 text-xs">Launch a customized, isolated pre-contract workspace by clicking any tender opportunity below.</p>
+            </div>
+            
+            <button 
+              onClick={() => {
+                setNewTender({
+                  tenderNo: `TND-2026-COL-${Math.floor(100 + Math.random() * 900)}`,
+                  name: '',
+                  client: '',
+                  consultant: '',
+                  location: '',
+                  tenderType: 'Building',
+                  status: 'Draft',
+                  submissionDate: '2026-07-31',
+                  estimatedValue: 0,
+                  assignedEstimator: 'Suren Jayasinghe (Lead PM)',
+                  currency: 'LKR',
+                  description: '',
+                  submissionMethod: 'Electronic Portal',
+                  notes: '',
+                  marginPercent: 12,
+                  overheadPercent: 6,
+                });
+                setIsCreateModalOpen(true);
+              }}
+              className="px-4 py-2 bg-primary-600 font-extrabold hover:bg-primary-700 text-white text-xs rounded-xl flex items-center gap-1.5 shadow transition-all hover:shadow-lg cursor-pointer"
+            >
+              <Plus size={15} /> Create Tender Opportunity
+            </button>
+          </div>
+
+          {/* Directory Context Alert for other subtabs */}
+          {activeSubTab !== 'tender-dashboard' && activeSubTab !== 'tender-opportunities' && (
+            <div className="bg-amber-50 border border-amber-200/60 rounded-xl p-4 flex items-start gap-3 text-amber-800">
+              <span className="p-1 px-2 bg-amber-100 rounded text-xs font-black font-mono">WORKSPACE REQUIRED</span>
+              <div className="space-y-0.5">
+                <p className="font-bold text-xs">A specific tender workspace is required to view the requested tab "{activeSubTab.replace('tender-', '').toUpperCase()}".</p>
+                <p className="text-[11px] text-amber-700/90 leading-tight">Please select one of the professional tender opportunities below to launch its isolated editing suite.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Overarching Pre-Contract Metrics Row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-xs">
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Active Opportunities</p>
+              <h3 className="text-xl font-black text-slate-800 mt-1">{tenders.filter(t => ['Draft', 'Estimating', 'Reviewing'].includes(t.status)).length} Tenders</h3>
+              <p className="text-[10.5px] text-slate-400 mt-1">Estimators preparing bids</p>
+            </div>
+            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-xs">
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Submitted Envelopes</p>
+              <h3 className="text-xl font-black text-purple-700 mt-1">{tenders.filter(t => t.status === 'Submitted').length} Pending</h3>
+              <p className="text-[10.5px] text-slate-400 mt-1">Pending client responses</p>
+            </div>
+            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-xs">
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Tenders Won / Awarded</p>
+              <h3 className="text-xl font-black text-emerald-600 mt-1">{tenders.filter(t => t.status === 'Awarded').length} Awarded</h3>
+              <p className="text-[10.5px] text-emerald-600/90 font-semibold mt-1">Ready for Post-Contract build</p>
+            </div>
+            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-xs">
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Consolidated Value Pool</p>
+              <h3 className="text-xl font-black text-slate-800 mt-1">{formatCurrency(tenders.reduce((sum, t) => sum + t.estimatedValue, 0))} LKR</h3>
+              <p className="text-[10.5px] text-slate-400 mt-1">Est. commercial baseline</p>
+            </div>
+          </div>
+
+          {/* Directory Ledger Filters & Card Deck */}
+          <div className="bg-slate-50 border border-slate-200/85 rounded-xl p-4.5 space-y-4">
+            
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3.5 pb-3 border-b border-slate-205">
+              <h3 className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5 uppercase tracking-wide">
+                 Opportunities Filter Base 
+              </h3>
+              
+              <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                <div className="relative flex-1 md:flex-none md:w-[220px]">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Search tender name/number..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none"
+                  />
+                </div>
+                
+                <select 
+                  value={statusFilter} 
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-xs outline-none font-bold cursor-pointer"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Estimating">Estimating</option>
+                  <option value="Reviewing">Reviewing</option>
+                  <option value="Submitted">Submitted</option>
+                  <option value="Awarded">Awarded</option>
+                  <option value="Lost">Lost</option>
+                </select>
+
+                <select 
+                  value={typeFilter} 
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-xs outline-none font-bold cursor-pointer"
+                >
+                  <option value="All">All Divisions</option>
+                  <option value="Building">Building Only</option>
+                  <option value="Infrastructure">Infrastructure Only</option>
+                  <option value="Road">Road Only</option>
+                  <option value="Civil">Civil Only</option>
+                  <option value="MEP">MEP Only</option>
+                </select>
+              </div>
+            </div>
+
+            {/* List of Tenders Cards Grid */}
+            {filteredTenders.length === 0 ? (
+              <div className="text-center py-16 bg-white border border-slate-150 rounded-xl">
+                <Briefcase className="mx-auto text-slate-300 mb-2" size={32} />
+                <p className="font-bold text-slate-700">No Pre-Contract Opportunities Found</p>
+                <p className="text-xs text-slate-400">Try loosening your search terms or classification filters.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5">
+                {filteredTenders.map((t) => {
+                  return (
+                    <div 
+                      key={t.id} 
+                      className="bg-white border border-slate-200 hover:border-primary-500 rounded-2xl p-5 flex flex-col justify-between shadow-xs hover:shadow-md transition-all group scale-100 hover:scale-[1.01]"
+                    >
+                      <div className="space-y-3.5">
+                        <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                          <span className="font-mono text-xs font-black text-primary-700 bg-primary-50 border border-primary-100 px-2 py-0.5 rounded leading-none">
+                            {t.tenderNo}
+                          </span>
+                          <span className={cn(
+                            "text-[10px] font-black uppercase px-2 py-0.5 rounded-full border leading-tight",
+                            t.status === 'Awarded' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                            t.status === 'Submitted' ? "bg-purple-50 text-purple-700 border-purple-100" :
+                            t.status === 'Estimating' ? "bg-amber-50 text-amber-700 border-amber-100" :
+                            t.status === 'Reviewing' ? "bg-indigo-50 text-indigo-700 border-indigo-100" :
+                            t.status === 'Lost' ? "bg-red-50 text-red-700 border-red-100" :
+                            "bg-slate-100 text-slate-700 border-slate-205"
+                          )}>
+                            ● {t.status}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <h4 className="font-extrabold text-slate-800 text-sm leading-snug tracking-tight group-hover:text-primary-800 transition-colors">
+                            {t.name}
+                          </h4>
+                          <p className="text-xs text-slate-400 font-medium">Client: {t.client}</p>
+                          <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                            <MapPin size={11} className="text-slate-400" /> {t.location}
+                          </p>
+                        </div>
+
+                        {/* Visual Non-Clickable Card Progress Pipeline Indicator */}
+                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 space-y-1.5">
+                          <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-slate-400">
+                            <span>Pipeline Stage</span>
+                            <span className="text-primary-700 font-bold">{t.status}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].map((step, sIdx) => {
+                              const stepIndex = ['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].indexOf(t.status);
+                              const currentStageIndex = ['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].indexOf(step);
+                              const isCompletedOrActive = stepIndex >= currentStageIndex && t.status !== 'Lost';
+                              
+                              return (
+                                <div 
+                                  key={step} 
+                                  className={cn(
+                                    "h-1 px-1 rounded-full flex-1",
+                                    isCompletedOrActive ? (
+                                      t.status === 'Awarded' ? "bg-emerald-500" : "bg-primary-600"
+                                    ) : "bg-slate-200"
+                                  )}
+                                  title={step}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] pt-1.5 border-t border-slate-100">
+                          <div>
+                            <span className="text-slate-400 uppercase tracking-widest text-[9px] font-bold block">Closing Date</span>
+                            <strong className="text-slate-700 font-mono text-[11.5px]">{t.submissionDate}</strong>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-slate-400 uppercase tracking-widest text-[9px] font-bold block">Est. Bid Value</span>
+                            <strong className="text-slate-800 font-bold text-[11.5px]">{formatCurrency(t.estimatedValue)} LKR</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSelectedTenderId(t.id);
+                          if (activeSubTab === 'tender-dashboard') {
+                            setActiveSubTab('tender-opportunities');
+                          }
+                        }}
+                        className="w-full mt-4.5 py-2.5 bg-slate-900 group-hover:bg-primary-650 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border border-transparent"
+                      >
+                        Manage Tender Workspace <ArrowRight size={13} className="stroke-[2.5]" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
-      {/* Unified Pre-Contract Action Header & Sub-Navigation Tab Panel */}
-      {activeSubTab !== 'tender-dashboard' && activeTender && (
-        <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4 animate-fade-in shadow-inner">
-          
-          {/* Top Row: Navigation Back Button and Active Project Selector + Status Pipeline */}
-          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 pb-3 border-b border-slate-205">
+      {/* 2. Workspace Tabs Route: If we are not on the general dashboard, choose between selected tender workspace and selection ledger */}
+      {selectedTenderId && activeTender && (
+        <div className="space-y-6 animate-fade-in text-[13px]">
+                 {/* Simplified, Clear Tender Workspace Action Header & Interactive Status Controller */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4 animate-fade-in shadow-inner text-slate-700">
             
-            {/* Left Hand: Back link + Tender selector dropdown */}
-            <div className="space-y-1.5 flex-1 min-w-0">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <button 
-                  onClick={() => setActiveSubTab('tender-dashboard')}
-                  className="flex items-center gap-1 hover:text-primary-700 font-extrabold transition-all hover:-translate-x-0.5 text-slate-500 cursor-pointer"
-                >
-                  <ChevronLeft size={14} className="stroke-[3]" /> Back to Command Deck
-                </button>
-                <span className="text-slate-300">/</span>
-                <span className="font-medium text-slate-400">Tender Workspace</span>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="font-mono text-xs font-black text-primary-650 bg-primary-50 px-2 py-0.5 rounded border border-primary-100">
-                  {activeTender.tenderNo}
-                </span>
+            {/* Top Row: Back to Ledger List & Selected Tender Title Display */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-3 border-b border-slate-200">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <span className="font-semibold text-slate-400">Tender Management Workspace</span>
+                </div>
                 
-                <div className="relative">
-                  <select
-                    value={activeTender.id}
-                    onChange={(e) => setSelectedTenderId(e.target.value)}
-                    className="font-extrabold text-slate-850 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs py-1.5 pl-3 pr-8 outline-none truncate cursor-pointer transition-all leading-tight ring-offset-white focus:outline-none focus:ring-1 focus:ring-primary-500 appearance-none shadow-sm min-w-[200px] max-w-[320px]"
-                  >
-                    {tenders.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                    <ChevronDown size={14} />
-                  </div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="font-mono text-xs font-black text-primary-650 bg-primary-50 px-2 py-0.5 rounded border border-primary-100">
+                    {activeTender.tenderNo}
+                  </span>
+                  <h2 className="font-extrabold text-slate-900 text-sm md:text-base tracking-tight leading-none">
+                    {activeTender.name}
+                  </h2>
+                  <span className="text-xs text-slate-400 font-medium">• {activeTender.client}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedTenderId(null);
+                    setActiveSubTab('tender-opportunities');
+                  }}
+                  className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-705 hover:text-slate-900 border border-slate-250 text-xs font-black rounded-lg flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                >
+                  ← Back to Tender Ledger List
+                </button>
+              </div>
+            </div>
+
+            {/* SIMPLIFIED DEDICATED STATUS CONTROLLER FOR DRAFT, ESTIMATE, SUBMIT, AWARD */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4.5 space-y-3.5 shadow-sm">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-widest font-black block">Interactive Bidding Pathway Controls</span>
+                  <p className="text-xs text-slate-500 font-medium leading-none">Change the tender status by clicking any of the steps below directly:</p>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 font-bold">Workspace Status:</span>
+                  <span className={cn(
+                    "text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full border leading-tight shadow-xs",
+                    activeTender.status === 'Awarded' ? "bg-emerald-50 text-emerald-700 border-emerald-250 animate-pulse" :
+                    activeTender.status === 'Submitted' ? "bg-purple-50 text-purple-700 border-purple-200" :
+                    activeTender.status === 'Reviewing' ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
+                    activeTender.status === 'Estimating' ? "bg-amber-50 text-amber-700 border-amber-200" :
+                    activeTender.status === 'Lost' ? "bg-red-50 text-red-700 border-red-200" :
+                    "bg-slate-100 text-slate-655 border-slate-250"
+                  )}>
+                    ● {activeTender.status}
+                  </span>
+
+                  {activeTender.status === 'Awarded' && (
+                    <button 
+                      onClick={handleConvertTender}
+                      className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-650 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-extrabold rounded-lg flex items-center gap-1.5 shadow border border-emerald-500 transition-transform hover:scale-103 cursor-pointer animate-pulse"
+                    >
+                      <Sparkles size={12} className="text-amber-305" /> Convert to Live Project! 🚀
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Steps Row representing Draft, Estimating, Reviewing, Submitted, Awarded clickable pipeline statuses */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {[
+                  { status: 'Draft', label: '1. Draft Proposal', desc: 'Configure core scope' },
+                  { status: 'Estimating', label: '2. Estimating Cost', desc: 'Build BOQ & quote rates' },
+                  { status: 'Reviewing', label: '3. QA/QC Reviewing', desc: 'Inspect bid margins' },
+                  { status: 'Submitted', label: '4. Bid Submitted', desc: 'Officially post to client' },
+                  { status: 'Awarded', label: '5. Contract Awarded', desc: 'Commission live workspace' }
+                ].map((step, sIdx) => {
+                  const isSelected = activeTender.status === step.status;
+                  const isCompleted = ['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].indexOf(activeTender.status) >= sIdx;
+                  const activeColorStyle = 
+                    step.status === 'Awarded' ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-500 text-white font-black" :
+                    "bg-primary-600 hover:bg-primary-700 border-primary-550 text-white font-black";
+
+                  return (
+                    <button
+                      key={step.status}
+                      type="button"
+                      onClick={() => {
+                        updateTender(activeTender.id, { status: step.status as any });
+                      }}
+                      className={cn(
+                        "flex flex-col text-left p-3 rounded-xl border transition-all hover:translate-y-[-1px] cursor-pointer shadow-xs",
+                        isSelected ? (
+                          activeColorStyle
+                        ) : isCompleted ? (
+                          "bg-primary-50 hover:bg-primary-100 border-primary-150 text-primary-900 font-bold"
+                        ) : (
+                          "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-500"
+                        )
+                      )}
+                      title={`Instantly set status to ${step.status}`}
+                    >
+                      <span className="text-[9px] uppercase font-black tracking-wider block">
+                        {isSelected ? '✓ ACTIVE NOW' : `STAGE 0${sIdx + 1}`}
+                      </span>
+                      <span className="text-xs font-black tracking-tight block mt-0.5 whitespace-nowrap">
+                        {step.label}
+                      </span>
+                      <span className={cn(
+                        "text-[10px] font-medium block leading-tight mt-1 truncate",
+                        isSelected ? "text-white/80" : "text-slate-400"
+                      )}>
+                        {step.desc}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Additional Helper controls for Lost/Reset */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                <span className="font-semibold text-slate-400 flex items-center gap-1">
+                  💡 <strong>User Action:</strong> Adjusting bidding status dynamically updates reports and live tracking parameters.
+                </span>
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  {activeTender.status !== 'Awarded' && activeTender.status !== 'Lost' && (
+                    <button 
+                      onClick={() => {
+                        if (confirm(`Confirm status change to Unsuccessful Opportunity ("Lost")?`)) {
+                          updateTender(activeTender.id, { status: 'Lost' });
+                        }
+                      }}
+                      className="px-3.5 py-1 bg-white hover:bg-red-50 text-red-655 border border-slate-205 rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+                    >
+                      Mark as Lost Opportunity ✗
+                    </button>
+                  )}
+                  {activeTender.status === 'Lost' && (
+                    <button 
+                      onClick={() => {
+                        updateTender(activeTender.id, { status: 'Estimating' });
+                      }}
+                      className="px-3.5 py-1 bg-white hover:bg-slate-50 text-primary-655 border border-slate-205 rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+                    >
+                      Re-Open Tender (Set back to Estimating) ↺
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Middle part: Visual Pipeline indicator */}
-            <div className="hidden sm:flex items-center gap-1 bg-white p-2 rounded-xl border border-slate-150 shadow-sm">
-              <span className="text-[10px] text-slate-450 font-bold uppercase px-2 tracking-wider">Pipeline Stage:</span>
-              <div className="flex items-center gap-1.5 text-xs font-semibold">
-                {['Draft', 'Estimating', 'Submitted', 'Awarded'].map((step, idx) => {
-                  const isCurrent = activeTender.status === step;
-                  const isPast = ['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].indexOf(activeTender.status) >= ['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].indexOf(step) && activeTender.status !== 'Lost';
-                  const isLost = activeTender.status === 'Lost' && step === 'Awarded';
-                  
-                  return (
-                    <React.Fragment key={step}>
-                      {idx > 0 && <span className="text-slate-350 font-normal">→</span>}
-                      <span 
-                        className={cn(
-                          "px-2.5 py-0.5 rounded-md text-[11px] font-bold shadow-xs border",
-                          isCurrent ? (
-                            step === 'Awarded' ? "bg-emerald-600 text-white border-emerald-500 animate-pulse" : "bg-primary-900 text-white border-primary-850"
-                          ) : isPast ? (
-                            "bg-slate-100 text-slate-650 border-slate-200"
-                          ) : isLost ? (
-                            "bg-red-50 text-red-650 border-red-150 line-through"
-                          ) : (
-                            "bg-slate-50/50 text-slate-400 border-none shadow-none"
-                          )
-                        )}
-                      >
-                        {isLost ? "Lost" : step}
-                      </span>
-                    </React.Fragment>
-                  );
-                })}
+            {/* Sub-navigation Menu Controls */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-transparent">
+              {[
+                { id: 'tender-opportunities', label: 'Tender Overview Room', icon: Briefcase },
+                { id: 'tender-boq', label: 'Bill of Quantities (BOQ)', icon: FileText },
+                { id: 'tender-estimation', label: 'Cost Analysis & Margin', icon: Calculator },
+                { id: 'tender-supplier-quotes', label: 'Supplier Proposals', icon: Sliders },
+                { id: 'tender-subcontractor-quotes', label: 'Subcont. Bid-List', icon: User },
+                { id: 'tender-revisions', label: 'Revisions & Addendums', icon: Calendar },
+                { id: 'tender-bid-submission', label: 'Proposal Submission', icon: CheckCircle },
+                { id: 'tender-reports', label: 'QS Summary Reports', icon: TrendingUp },
+              ].map((tab) => {
+                const isSelected = activeSubTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveSubTab(tab.id)}
+                    type="button"
+                    className={cn(
+                      "flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg whitespace-nowrap transition-all cursor-pointer border",
+                      isSelected ? (
+                        "bg-primary-900 text-white border-primary-850 shadow-md font-black"
+                      ) : (
+                        "bg-white text-slate-550 hover:text-slate-850 hover:bg-slate-50 border-slate-200 font-bold"
+                      )
+                    )}
+                  >
+                    {React.createElement(tab.icon, { size: 13, className: isSelected ? "text-amber-305 stroke-[2.5]" : "text-slate-400" })}
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+          </div>
+
+          {/* Simple, Consistent Status Metric Cards Row For Active Workspace */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4.5 bg-white border border-slate-200 rounded-xl p-4.5 shadow-sm font-sans text-slate-700">
+            {activeSubTab === 'tender-opportunities' && (
+              <>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Client Partner</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTender.client}</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Closing Bid Date</span>
+                  <strong className="text-slate-800 font-mono text-[13px] block mt-0.5">{activeTender.submissionDate}</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Estimated Tender Value</span>
+                  <strong className="text-primary-700 font-extrabold text-[13px] block mt-0.5">{formatCurrency(activeTender.estimatedValue)} LKR</strong>
+                </div>
+              </>
+            )}
+
+            {activeSubTab === 'tender-boq' && (
+              <>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Total Line Items</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderBOQItems.length} lines scheduled</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Total Scheduled cost</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{formatCurrency(tenderTotals.baseCost)} LKR</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Priced Items with Formulas</span>
+                  <strong className="text-primary-700 font-extrabold text-[13px] block mt-0.5">{activeTenderBOQItems.filter(item => item.rateAnalysisId).length} units analyzed</strong>
+                </div>
+              </>
+            )}
+
+            {activeSubTab === 'tender-estimation' && (
+              <>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Direct Base Cost</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{formatCurrency(tenderTotals.baseCost)} LKR</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Overhead & Profit Markups</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">OH: {activeTender.overheadPercent}% | GM: {activeTender.marginPercent}%</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Proposed Bid Price</span>
+                  <strong className="text-primary-700 font-extrabold text-[13px] block mt-0.5">{formatCurrency(tenderTotals.finalBid)} LKR</strong>
+                </div>
+              </>
+            )}
+
+            {activeSubTab === 'tender-supplier-quotes' && (
+              <>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Requests Broadcasted</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderSupplierQuotes.length} Proposals Requested</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Active Approved Materials</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderSupplierQuotes.filter(q => q.status === 'Approved').length} Checked</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans font-mono">Supplier cost committed</span>
+                  <strong className="text-primary-705 font-extrabold text-[13px] block mt-0.5 font-mono">{formatCurrency(activeTenderSupplierQuotes.reduce((s, q) => s + q.totalAmount, 0))} LKR</strong>
+                </div>
+              </>
+            )}
+
+            {activeSubTab === 'tender-subcontractor-quotes' && (
+              <>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Work Packages</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderSubconQuotes.length} Portfolios</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Approved Subcontract Partners</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderSubconQuotes.filter(q => q.status === 'Approved').length} Approved</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Subcont value committed</span>
+                  <strong className="text-primary-705 font-extrabold text-[13px] block mt-0.5 font-sans">{formatCurrency(activeTenderSubconQuotes.filter(q => q.status === 'Approved').reduce((s, q) => s + q.totalAmount, 0))} LKR</strong>
+                </div>
+              </>
+            )}
+
+            {activeSubTab === 'tender-revisions' && (
+              <>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Registered Revisions</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderRevisions.length} Bulletins</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Original Base estimate</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{formatCurrency(activeTender.estimatedValue)} LKR</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-mono">Latest revised estimate</span>
+                  <strong className="text-primary-705 font-extrabold text-[13px] block mt-0.5">
+                    {formatCurrency(activeTenderRevisions.length > 0 ? (activeTenderRevisions[0].revisedEstimate || tenderTotals.finalBid) : tenderTotals.finalBid)} LKR
+                  </strong>
+                </div>
+              </>
+            )}
+
+            {activeSubTab === 'tender-bid-submission' && (
+              <>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Bidding Opportunity Status</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTender.status}</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Bid Amount Locked</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{formatCurrency(tenderTotals.finalBid)} LKR</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-mono font-sans">Submission Portal</span>
+                  <strong className="text-primary-705 font-extrabold text-[13px] block mt-0.5">Electronic RDA Portal</strong>
+                </div>
+              </>
+            )}
+
+            {activeSubTab === 'tender-reports' && (
+              <>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Estimated Base Value</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{formatCurrency(tenderTotals.baseCost)} LKR</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Bidding Gross Margin</span>
+                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTender.marginPercent}% Markup Applied</strong>
+                </div>
+                <div className="space-y-1 border-l border-slate-100 pl-4.5">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Proposed Bid Outlay</span>
+                  <strong className="text-primary-705 font-extrabold text-[13px] block mt-0.5 font-sans">{formatCurrency(tenderTotals.finalBid)} LKR</strong>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Render Active Subtab Content with individual dropdown bypass */}
+          
+          {/* Individual Tender Workspace Dashboard Cockpit overrides general stats */}
+          {activeSubTab === 'tender-dashboard' && (
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6.5 space-y-6 animate-fade-in text-slate-655">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+                <div className="space-y-0.5">
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">WORKSPACE COCKPIT</h3>
+                  <p className="text-[11px] text-slate-400">Consolidated pre-contract status for {activeTender.name}.</p>
+                </div>
+                <span className="text-xs text-primary-600 bg-primary-50 px-2 rounded font-bold font-mono py-0.5">ESTIMATION ONGOING</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4.5">
+                  <span className="text-[10px] text-slate-405 font-bold uppercase block tracking-wider">BOQ Rate Schedule</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl font-black text-slate-800">{activeTenderBOQItems.length}</span>
+                    <span className="text-xs text-slate-400">item entries indexed</span>
+                  </div>
+                  <button onClick={() => setActiveSubTab('tender-boq')} className="text-xs text-primary-600 font-extrabold hover:underline block mt-3">Configure BOQ Entries →</button>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4.5">
+                  <span className="text-[10px] text-slate-405 font-bold uppercase block tracking-wider">Supplier/Vendor Quotes</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl font-black text-slate-800">{activeTenderSupplierQuotes.length}</span>
+                    <span className="text-xs text-slate-400">proposals evaluated</span>
+                  </div>
+                  <button onClick={() => setActiveSubTab('tender-supplier-quotes')} className="text-xs text-primary-600 font-extrabold hover:underline block mt-3 font-bold">Inspect Quotations →</button>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4.5">
+                  <span className="text-[10px] text-slate-405 font-bold uppercase block tracking-wider">Target Estimate Sum</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl font-black text-slate-800">{formatCurrency(tenderTotals.finalBid)}</span>
+                    <span className="text-[10px] text-slate-400 pl-0.5">LKR ({activeTender.marginPercent}% margin applied)</span>
+                  </div>
+                  <button onClick={() => setActiveSubTab('tender-estimation')} className="text-xs text-primary-600 font-extrabold hover:underline block mt-3 font-bold font-sans">Modify Markups & Overheads →</button>
+                </div>
+              </div>
+
+              <div className="p-4 bg-primary-100/10 border border-primary-200/50 rounded-xl flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-black text-primary-950">Next Operation Guideline:</p>
+                  <p className="text-[11px] text-slate-500">Conduct detailed Cost Analysis breakout or finalize revision history before registering the official bid transmission.</p>
+                </div>
+                <button 
+                  onClick={() => setActiveSubTab('tender-bid-submission')}
+                  className="px-4 py-1.5 bg-primary-900 text-white rounded-lg text-xs hover:bg-primary-950 font-bold transition-transform cursor-pointer"
+                >
+                  Compile Proposal Submission
+                </button>
               </div>
             </div>
+          )}
 
-            {/* Right Hand: Action Button to Mark Awarded or Convert Project */}
-            <div className="flex items-center gap-2">
-              {activeTender.status !== 'Awarded' && activeTender.status !== 'Lost' && (
-                <>
-                  <button 
-                    onClick={() => {
-                      if (confirm(`Confirm awarding contract package for "${activeTender.name}"? This initiates project commissioning and allows immediate Post-Contract system operations.`)) {
-                        updateTender(activeTender.id, { status: 'Awarded' });
-                      }
-                    }}
-                    type="button"
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-500"
-                  >
-                    <CheckCircle size={14} className="text-white" /> Mark Awarded ✓
-                  </button>
-                  <button 
-                    onClick={() => {
-                      if (confirm(`Mark "${activeTender.name}" as an unsuccessful opportunity?`)) {
-                        updateTender(activeTender.id, { status: 'Lost' });
-                      }
-                    }}
-                    type="button"
-                    className="px-3 py-2 bg-white hover:bg-red-50 hover:text-red-600 text-slate-555 border border-slate-200 text-xs rounded-xl font-bold transition-all cursor-pointer shadow-sm"
-                  >
-                    Mark Lost ✗
-                  </button>
-                </>
-              )}
-
-              {activeTender.status === 'Awarded' && (
-                <button 
-                  onClick={handleConvertTender}
-                  type="button"
-                  className="px-4.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-650 hover:from-emerald-700 hover:to-teal-700 text-white text-xs rounded-xl flex items-center gap-1.5 shadow-md border border-emerald-500 animate-pulse transition-all cursor-pointer font-black scale-102 hover:scale-105"
-                  title="Initialize a new Live project execution workspace!"
-                >
-                  <Sparkles size={14} className="text-amber-300" /> Convert to Post-Contract Workspace 🚀
-                </button>
-              )}
-
-              {activeTender.status === 'Lost' && (
-                <button 
-                  onClick={() => updateTender(activeTender.id, { status: 'Estimating' })}
-                  type="button"
-                  className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-205 text-slate-700 text-xs rounded-xl font-extrabold flex items-center gap-1 transition-all shadow-sm cursor-pointer"
-                >
-                  <RefreshCw size={13} /> Reset to Estimating ↺
-                </button>
-              )}
-            </div>
-
-          </div>
-
-          {/* Bottom Row: Seamless Horizontal Navigation Tabs inside the context card */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-transparent">
-            {[
-              { id: 'tender-opportunities', label: 'Tender Overview Room', icon: Briefcase },
-              { id: 'tender-boq', label: 'Bill of Quantities (BOQ)', icon: FileText },
-              { id: 'tender-estimation', label: 'Cost Analysis & Margin', icon: Calculator },
-              { id: 'tender-supplier-quotes', label: 'Supplier Proposals', icon: Sliders },
-              { id: 'tender-subcontractor-quotes', label: 'Subcont. Bid-List', icon: User },
-              { id: 'tender-revisions', label: 'Revisions & Addendums', icon: Calendar },
-              { id: 'tender-bid-submission', label: 'Proposal Submission', icon: CheckCircle },
-              { id: 'tender-reports', label: 'QS Summary Reports', icon: TrendingUp },
-            ].map((tab) => {
-              const isSelected = activeSubTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveSubTab(tab.id)}
-                  type="button"
-                  className={cn(
-                    "flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg whitespace-nowrap transition-all cursor-pointer border",
-                    isSelected ? (
-                      "bg-primary-900 text-white border-primary-850 shadow-md"
-                    ) : (
-                      "bg-white text-slate-550 hover:text-slate-850 hover:bg-slate-50 border-slate-200"
-                    )
-                  )}
-                >
-                  {React.createElement(tab.icon, { size: 13, className: isSelected ? "text-amber-300 stroke-[2.5]" : "text-slate-400" })}
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
+          {/* Renders other sub-tabs when context ledger is active */}
         </div>
       )}
 
       {/* Tender Dashboard (Main Option 1) */}
-      {activeSubTab === 'tender-dashboard' && (
+      {activeSubTab === 'tender-dashboard' && !selectedTenderId && (
         <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
           
           {/* Header */}
@@ -812,7 +1262,7 @@ export const TenderManagementShell: React.FC<{
       )}
 
       {/* Tender Opportunities Tab VIEW */}
-      {activeSubTab === 'tender-opportunities' && (
+      {activeSubTab === 'tender-opportunities' && selectedTenderId && (
         <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
           
           <div className="flex justify-between items-end">
@@ -1031,7 +1481,7 @@ export const TenderManagementShell: React.FC<{
       )}
 
       {/* Tender BOQ Module (Option 3) */}
-      {activeSubTab === 'tender-boq' && (
+      {activeSubTab === 'tender-boq' && selectedTenderId && (
         <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
@@ -1221,7 +1671,7 @@ export const TenderManagementShell: React.FC<{
       )}
 
       {/* Estimation Module (Option 4) */}
-      {activeSubTab === 'tender-estimation' && (
+      {activeSubTab === 'tender-estimation' && selectedTenderId && (
         <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
           
           <div className="space-y-1">
@@ -1351,7 +1801,7 @@ export const TenderManagementShell: React.FC<{
       )}
 
       {/* Supplier & Subcontractor Quotations Tabs (Options 5 & 6) */}
-      {(activeSubTab === 'tender-supplier-quotes' || activeSubTab === 'tender-subcontractor-quotes') && (
+      {(activeSubTab === 'tender-supplier-quotes' || activeSubTab === 'tender-subcontractor-quotes') && selectedTenderId && (
         <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
           
           <div className="flex justify-between items-end">
@@ -1467,7 +1917,7 @@ export const TenderManagementShell: React.FC<{
       )}
 
       {/* Tender Revisions (Option 7) */}
-      {activeSubTab === 'tender-revisions' && (
+      {activeSubTab === 'tender-revisions' && selectedTenderId && (
         <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
           
           <div className="flex justify-between items-end">
@@ -1525,7 +1975,7 @@ export const TenderManagementShell: React.FC<{
       )}
 
       {/* Bid Submission (Option 8) */}
-      {activeSubTab === 'tender-bid-submission' && (
+      {activeSubTab === 'tender-bid-submission' && selectedTenderId && (
         <div className="space-y-6 animate-fade-in text-[13px] text-slate-600 font-sans">
           
           <div className="space-y-1">
@@ -1657,7 +2107,7 @@ export const TenderManagementShell: React.FC<{
       )}
 
       {/* Tender Reports (Option 9) */}
-      {activeSubTab === 'tender-reports' && (
+      {activeSubTab === 'tender-reports' && selectedTenderId && (
         <div className="space-y-6 animate-fade-in text-[13px] text-slate-600 font-sans">
           
           <div className="space-y-1">

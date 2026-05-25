@@ -18,6 +18,8 @@ export interface EnhancedResource {
   remarks?: string;
   attachments?: string[];
   currentRegionPrice?: number;
+  resourceGroup?: string;
+  resourceSubGroup?: string;
 }
 
 export interface Supplier {

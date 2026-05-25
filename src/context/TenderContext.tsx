@@ -364,7 +364,7 @@ export const TenderProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [selectedTenderId, setSelectedTenderId] = useState<string | null>(() => {
     const saved = localStorage.getItem('buildops_selected_tender_id');
-    return saved || 'tender-1';
+    return saved || null;
   });
 
   // Automatically save to localstorage when changes occur

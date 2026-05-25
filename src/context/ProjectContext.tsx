@@ -13,7 +13,7 @@ interface ProjectContextType {
   projectEvents: ProjectCalendarEvent[];
   isProjectSelected: boolean;
   selectProject: (id: string | null) => void;
-  addProject: (project: Omit<Project, 'id' | 'tenant_id'>) => void;
+  addProject: (project: Omit<Project, 'id' | 'tenant_id'>) => string;
   cloneProject: (sourceId: string, name: string, code: string) => void;
   archiveProject: (id: string) => void;
   toggleFavoriteProject: (id: string) => void;
@@ -396,7 +396,7 @@ export const ProjectProvider = ({ children }: { children: React.ReactNode }) => 
 
   const currentProject = projects.find(p => p.id === selectedProjectId) || null;
 
-  const addProject = (p: Omit<Project, 'id' | 'tenant_id'>) => {
+  const addProject = (p: Omit<Project, 'id' | 'tenant_id'>): string => {
     const generatedId = `proj-${Date.now()}`;
     const newProj: Project = {
       ...p,
@@ -421,6 +421,7 @@ export const ProjectProvider = ({ children }: { children: React.ReactNode }) => 
     
     // Select the newly created project automatically to offer immediate workspace conversion!
     setSelectedProjectId(generatedId);
+    return generatedId;
   };
 
   const cloneProject = (sourceId: string, name: string, code: string) => {

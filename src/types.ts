@@ -22,6 +22,8 @@ export interface Resource {
   baseRate: number;
   specifications?: string;
   lastUpdated: string;
+  resourceGroup?: string;
+  resourceSubGroup?: string;
 }
 
 export interface RateAnalysisItem {

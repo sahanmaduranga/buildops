@@ -128,18 +128,33 @@ export const RateAnalysisScreen = ({
     { id: 'finishing', label: 'Finishing Works' },
   ]);
 
+  const isMasterMode = activeSubTab === 'master-analyses';
+  const [localTabState, setLocalTabState] = useState('rate-analysis-dashboard');
+
+  const currentTab = isMasterMode 
+    ? localTabState 
+    : (activeSubTab || 'rate-analysis-dashboard');
+
+  const handleSetActiveSubTab = (tabId: string) => {
+    if (isMasterMode) {
+      setLocalTabState(tabId);
+    } else if (setActiveSubTab) {
+      setActiveSubTab(tabId);
+    }
+  };
+
   // Sync to subtab switches to reset/maintain local active selections
   useEffect(() => {
-    if (activeSubTab !== 'rate-analysis-builder') {
+    if (currentTab !== 'rate-analysis-builder') {
       setSelectedAnalysis(null);
     }
-  }, [activeSubTab]);
+  }, [currentTab]);
 
   const handleSelectAnalysis = (analysisId: string) => {
     const analysis = analyses.find(a => a.id === analysisId);
     if (analysis) {
       setSelectedAnalysis(analysis);
-      setActiveSubTab('rate-analysis-builder');
+      handleSetActiveSubTab('rate-analysis-builder');
     }
   };
 
@@ -171,13 +186,13 @@ export const RateAnalysisScreen = ({
     }
     onUpdateAnalyses(newAnalyses);
     setSelectedAnalysis(null);
-    setActiveSubTab('rate-analysis-list');
+    handleSetActiveSubTab('rate-analysis-list');
   };
 
   const handleDeleteAnalysis = (id: string) => {
     onUpdateAnalyses(analyses.filter(a => a.id !== id));
     setSelectedAnalysis(null);
-    setActiveSubTab('rate-analysis-list');
+    handleSetActiveSubTab('rate-analysis-list');
   };
 
   const handleImportTemplate = (templateCode: string) => {
@@ -212,13 +227,13 @@ export const RateAnalysisScreen = ({
 
   // Render correct sub-view based on activeSubTab route
   const renderContent = () => {
-    switch (activeSubTab) {
+    switch (currentTab) {
       case 'rate-analysis-dashboard':
         return (
           <DashboardView 
             analyses={analyses} 
             resources={resources} 
-            onNavigateToTab={setActiveSubTab}
+            onNavigateToTab={handleSetActiveSubTab}
             onSelectAnalysis={handleSelectAnalysis}
           />
         );
@@ -230,7 +245,7 @@ export const RateAnalysisScreen = ({
             onSelectAnalysis={handleSelectAnalysis}
             onDuplicateAnalysis={handleDuplicateAnalysis}
             onArchiveAnalysis={handleArchiveAnalysis}
-            onSelectSubTab={setActiveSubTab}
+            onSelectSubTab={handleSetActiveSubTab}
             categories={categories}
             setCategories={setCategories}
             selectedRegion={selectedRegion}
@@ -243,7 +258,7 @@ export const RateAnalysisScreen = ({
         return (
           <DetailView 
             analysis={selectedAnalysis} 
-            onBack={() => setActiveSubTab('rate-analysis-list')}
+            onBack={() => handleSetActiveSubTab('rate-analysis-list')}
             regionId={selectedRegion}
             periodId={selectedPeriod}
             onRegionChange={setSelectedRegion}
@@ -272,7 +287,7 @@ export const RateAnalysisScreen = ({
           <TemplatesView 
             analyses={analyses} 
             resources={resources} 
-            onSelectSubTab={setActiveSubTab}
+            onSelectSubTab={handleSetActiveSubTab}
             onImportFromTemplate={handleImportTemplate}
           />
         );
@@ -295,7 +310,7 @@ export const RateAnalysisScreen = ({
           <DashboardView 
             analyses={analyses} 
             resources={resources} 
-            onNavigateToTab={setActiveSubTab}
+            onNavigateToTab={handleSetActiveSubTab}
             onSelectAnalysis={handleSelectAnalysis}
           />
         );
@@ -305,11 +320,40 @@ export const RateAnalysisScreen = ({
   return (
     <div className="h-full">
       <div className="text-[12px] text-zentrix-muted font-medium mb-1">
-        Projects / {currentProject?.name || 'Global Catalog'} / Costing & Estimation
+        {isMasterMode ? 'Enterprise Registry / Company Master Library / Rate Analysis' : `Projects / ${currentProject?.name || 'Global Catalog'} / Costing & Estimation`}
       </div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-zentrix-blue leading-tight tracking-tight">Rate Analysis Module</h2>
+        <h2 className="text-2xl font-bold text-zentrix-blue leading-tight tracking-tight">
+          {isMasterMode ? 'Master Rate Analysis Library' : 'Rate Analysis Module'}
+        </h2>
       </div>
+
+      {/* If in Master Rate Analysis mode, render on-screen horizontal sub-tabs */}
+      {isMasterMode && (
+        <div className="flex flex-wrap gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200 flex-row mb-5 max-w-fit">
+          {[
+            { id: 'rate-analysis-dashboard', label: 'Dashboard' },
+            { id: 'rate-analysis-list', label: 'Analysis Registry' },
+            { id: 'rate-analysis-resource-costing', label: 'Resource Costing' },
+            { id: 'rate-analysis-comparison', label: 'Comparison' },
+            { id: 'rate-analysis-templates', label: 'General Templates' },
+            { id: 'rate-analysis-import-export', label: 'Excel Sync' },
+            { id: 'rate-analysis-reports', label: 'Commercial Reports' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setLocalTabState(tab.id)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                localTabState === tab.id 
+                  ? 'bg-white text-primary-600 shadow-sm font-black' 
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         <motion.div

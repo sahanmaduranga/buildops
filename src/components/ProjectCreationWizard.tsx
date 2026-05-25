@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useProject } from '../context/ProjectContext.tsx';
-import { Project } from '../types.ts';
+import { Project, Resource, RateAnalysis } from '../types.ts';
 import { 
   X, 
   Info, 
@@ -15,8 +15,19 @@ import {
   Shield,
   Briefcase,
   AlertOctagon,
-  Sparkles
+  Sparkles,
+  Archive,
+  Plus,
+  Compass,
+  FileText
 } from 'lucide-react';
+import {
+  getGlobalResources,
+  getGlobalAnalyses,
+  executeResourceImport,
+  executeAnalysisImport,
+  ImportStats
+} from '../utils/masterLibraryImportUtils.ts';
 
 interface ProjectCreationWizardProps {
   isOpen: boolean;
@@ -26,6 +37,27 @@ interface ProjectCreationWizardProps {
 export const ProjectCreationWizard = ({ isOpen, onClose }: ProjectCreationWizardProps) => {
   const { addProject } = useProject();
   const [activeStep, setActiveStep] = useState(0);
+
+  // Core Import States
+  const [importResources, setImportResources] = useState(true);
+  const [importAnalyses, setImportAnalyses] = useState(true);
+  
+  // Resources options
+  const [resourceImportMode, setResourceImportMode] = useState<'all' | 'categories' | 'specific'>('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSpecificResources, setSelectedSpecificResources] = useState<string[]>([]);
+  const [importPrices, setImportPrices] = useState(true);
+  const [resourceConflictStrategy, setResourceConflictStrategy] = useState<'skip' | 'update' | 'duplicate' | 'rename'>('skip');
+
+  // Rate analysis options
+  const [analysisImportMode, setAnalysisImportMode] = useState<'all' | 'groups' | 'specific'>('all');
+  const [selectedAnalysisCategories, setSelectedAnalysisCategories] = useState<string[]>([]);
+  const [selectedSpecificAnalyses, setSelectedSpecificAnalyses] = useState<string[]>([]);
+  const [analysisConflictStrategy, setAnalysisConflictStrategy] = useState<'skip' | 'update' | 'duplicate' | 'rename'>('duplicate');
+
+  // Summary Dialog State
+  const [importStats, setImportStats] = useState<{ resStats: ImportStats | null; anStats: ImportStats | null } | null>(null);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   // Comprehensive state covering all required enterprise fields
   const [formData, setFormData] = useState({
@@ -81,12 +113,112 @@ export const ProjectCreationWizard = ({ isOpen, onClose }: ProjectCreationWizard
 
   if (!isOpen) return null;
 
+  const globalResForStep = getGlobalResources();
+  const globalAnalysesForStep = getGlobalAnalyses();
+  const resCategoriesUnique = Array.from(new Set(globalResForStep.map(r => r.category)));
+  const analysisGroupsUnique = Array.from(new Set(globalAnalysesForStep.map(a => a.categoryId || 'Standard Group')));
+
+  if (showSummaryModal) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col border border-zentrix-border animate-slide-in">
+          {/* Header */}
+          <div className="px-6 py-5 border-b border-zentrix-border bg-emerald-50 text-emerald-900 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow shadow-emerald-500/25">
+                <Check size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-black">Data Import Completed!</h3>
+                <p className="text-xs text-emerald-700/80">Corporate Master templates cloned into active workspace catalog.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats details */}
+          <div className="p-6 space-y-6 overflow-y-auto max-h-[60vh] text-slate-600 text-xs">
+            <div className="grid grid-cols-2 gap-4">
+              {importStats?.resStats && (
+                <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Archive size={16} className="text-primary-600" />
+                    <h4 className="font-extrabold text-[#111c2e] text-xs">Resources Library Copy</h4>
+                  </div>
+                  <ul className="space-y-1.5 text-slate-500 font-medium font-sans">
+                    <li className="flex justify-between"><span>Cloned:</span> <strong className="text-slate-800">{importStats.resStats.importedCount} items</strong></li>
+                    <li className="flex justify-between"><span>Duplicates Created:</span> <strong className="text-slate-800">{importStats.resStats.duplicateCount} items</strong></li>
+                    <li className="flex justify-between"><span>Auto Renamed:</span> <strong className="text-slate-800">{importStats.resStats.renamedCount} items</strong></li>
+                    <li className="flex justify-between"><span>Skipped (Existing):</span> <strong className="text-slate-800">{importStats.resStats.skippedCount} items</strong></li>
+                    <li className="flex justify-between"><span>Pricing Sourcing:</span> <span className="text-emerald-600 font-bold">{importPrices ? "Yes, Sourced" : "No, Base Raw"}</span></li>
+                  </ul>
+                </div>
+              )}
+
+              {importStats?.anStats && (
+                <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sliders size={16} className="text-indigo-600" />
+                    <h4 className="font-extrabold text-[#111c2e] text-xs">Rate Analysis Copy</h4>
+                  </div>
+                  <ul className="space-y-1.5 text-slate-500 font-medium font-sans">
+                    <li className="flex justify-between"><span>Cloned:</span> <strong className="text-slate-800">{importStats.anStats.importedCount} items</strong></li>
+                    <li className="flex justify-between"><span>Duplicates Created:</span> <strong className="text-slate-800">{importStats.anStats.duplicateCount} items</strong></li>
+                    <li className="flex justify-between"><span>Auto-Renamed:</span> <strong className="text-slate-800">{importStats.anStats.renamedCount} items</strong></li>
+                    <li className="flex justify-between"><span>Skipped (Existing):</span> <strong className="text-slate-800">{importStats.anStats.skippedCount} items</strong></li>
+                    <li className="flex justify-between"><span>Dependencies:</span> <span className="text-slate-700 font-bold">Auto Resolved</span></li>
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Warnings section mapping */}
+            {((importStats?.resStats?.warnings?.length || 0) + (importStats?.anStats?.warnings?.length || 0)) > 0 && (
+              <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl space-y-2">
+                <div className="flex items-center gap-2 text-amber-800 font-bold text-xs">
+                  <AlertOctagon size={16} />
+                  <span>Dependency & Sourcing Warnings ({((importStats?.resStats?.warnings?.length || 0) + (importStats?.anStats?.warnings?.length || 0))})</span>
+                </div>
+                <div className="max-h-24 overflow-y-auto space-y-1 text-[11px] text-amber-700 font-medium font-sans">
+                  {importStats?.resStats?.warnings.map((w, i) => (
+                    <div key={`res-w-${i}`}>• {w}</div>
+                  ))}
+                  {importStats?.anStats?.warnings.map((w, i) => (
+                    <div key={`an-w-${i}`}>• {w}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Subtext info */}
+            <div className="p-3 bg-slate-50 text-slate-400 rounded-lg text-center text-[11px] leading-relaxed">
+              These records are sandboxed and fully isolated. You can safely edit, add price matrix options, or change calculations within the new Project workspace without side-effects to the Master Corporate Directory.
+            </div>
+          </div>
+
+          {/* Footer Action */}
+          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+            <button
+              onClick={() => {
+                setShowSummaryModal(false);
+                onClose();
+              }}
+              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer"
+            >
+              Enter Project Workspace <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const steps = [
     { label: 'General', icon: Briefcase, desc: 'Project Identifiers' },
     { label: 'Organization', icon: Users, desc: 'Staffing & Managers' },
     { label: 'Financials', icon: DollarSign, desc: 'Budgets & Values' },
     { label: 'Schedule', icon: Calendar, desc: 'Key Dates & Milestones' },
-    { label: 'Configuration', icon: Sliders, desc: 'Rule Sets & Calendars' }
+    { label: 'Configuration', icon: Sliders, desc: 'Rule Sets & Calendars' },
+    { label: 'Import Master Data', icon: Archive, desc: 'Setup Company Templates' }
   ];
 
   const handleInputChange = (field: string, value: any) => {
@@ -112,8 +244,73 @@ export const ProjectCreationWizard = ({ isOpen, onClose }: ProjectCreationWizard
       estimatedCost: Number(formData.estimatedCost),
     };
 
-    addProject(projectToSubmit);
-    onClose();
+    // 1. Add project using context trigger
+    const newProjectId = addProject(projectToSubmit);
+
+    // 2. Perform Resource Import
+    let finalProjectResources: Resource[] = [];
+    let resStatsResult: ImportStats | null = null;
+
+    if (importResources) {
+      const { updatedResources, stats } = executeResourceImport({
+        projectId: newProjectId,
+        importMode: resourceImportMode,
+        selectedCategories: selectedCategories,
+        selectedSpecificResources: selectedSpecificResources,
+        importPrices: importPrices,
+        conflictStrategy: resourceConflictStrategy
+      }, []);
+      finalProjectResources = updatedResources;
+      resStatsResult = stats;
+    }
+
+    // 3. Perform Rate Analysis Import
+    let finalProjectAnalyses: RateAnalysis[] = [];
+    let anStatsResult: ImportStats | null = null;
+
+    if (importAnalyses) {
+      const { updatedAnalyses, resolvedResources, stats } = executeAnalysisImport({
+        projectId: newProjectId,
+        importMode: analysisImportMode,
+        selectedGroups: selectedAnalysisCategories,
+        selectedSpecificAnalyses: selectedSpecificAnalyses,
+        conflictStrategy: analysisConflictStrategy
+      }, finalProjectResources, []);
+
+      finalProjectResources = resolvedResources; // Save resolved dependent resources automatically!
+      finalProjectAnalyses = updatedAnalyses;
+      anStatsResult = stats;
+    }
+
+    // Save final copies directly to isolated workspace space in localStorage
+    localStorage.setItem(`buildops_project_resources_${newProjectId}`, JSON.stringify(finalProjectResources));
+    localStorage.setItem(`buildops_project_analyses_${newProjectId}`, JSON.stringify(finalProjectAnalyses));
+
+    // 4. Save detailed log/history record in localStorage for the project setup panel
+    const setupImportLog = {
+      importDate: new Date().toISOString().split('T')[0],
+      resources: resStatsResult ? {
+        importedCount: resStatsResult.importedCount + resStatsResult.duplicateCount + resStatsResult.renamedCount,
+        skippedCount: resStatsResult.skippedCount,
+        withPrices: importPrices ? 'YES' : 'NO',
+        importMode: resourceImportMode,
+        strategy: resourceConflictStrategy,
+        library: 'Corporate Master Resource Library v4.5'
+      } : null,
+      analyses: anStatsResult ? {
+        importedCount: anStatsResult.importedCount + anStatsResult.duplicateCount + anStatsResult.renamedCount,
+        skippedCount: anStatsResult.skippedCount,
+        importMode: analysisImportMode,
+        strategy: analysisConflictStrategy,
+        library: 'Corporate Master Rate Analysis Library v4.5'
+      } : null
+    };
+
+    localStorage.setItem(`buildops_project_import_log_${newProjectId}`, JSON.stringify(setupImportLog));
+
+    // Show beautiful summary, then let the user finalize
+    setImportStats({ resStats: resStatsResult, anStats: anStatsResult });
+    setShowSummaryModal(true);
   };
 
   const nextStep = () => {
@@ -614,6 +811,226 @@ export const ProjectCreationWizard = ({ isOpen, onClose }: ProjectCreationWizard
                   className="w-full px-3 py-2 border border-zentrix-border rounded-lg bg-slate-50 focus:bg-white font-mono"
                   placeholder="https://images.unsplash.com/..."
                 />
+              </div>
+            </div>
+          )}
+
+          {activeStep === 5 && (
+            <div className="space-y-4 animate-slide-in overflow-y-auto max-h-[50vh] pr-2 text-[#475569] font-sans pb-3">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                <Sparkles size={16} className="text-primary-600" />
+                <h4 className="font-black text-zentrix-blue text-sm">Enterprise Data Sourcing & Master Copy Setup</h4>
+              </div>
+              <p className="text-[11.5px] leading-relaxed text-slate-400">
+                Establish localized workspace catalogs by cloning standardized company master libraries. Changes made inside this project will remain completely isolated and secure.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+                {/* RESOURCES BLOCK */}
+                <div className="p-4 rounded-xl border border-slate-100 bg-[#f8fafc]/50 space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                    <label className="flex items-center gap-2 font-black text-xs text-slate-800 cursor-pointer user-select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={importResources} 
+                        onChange={(e) => setImportResources(e.target.checked)}
+                        className="rounded text-primary-600 focus:ring-primary-500 w-3.5 h-3.5"
+                      />
+                      <span>Clone Global Resource Library</span>
+                    </label>
+                    <span className="px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase bg-primary-100 text-primary-700 rounded-sm">RESOURCES</span>
+                  </div>
+
+                  {importResources && (
+                    <div className="space-y-3 animate-slide-up text-xs font-semibold font-sans">
+                      {/* Scope Selection */}
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Import Scope Options</label>
+                        <select
+                          className="w-full border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-xs"
+                          value={resourceImportMode}
+                          onChange={(e) => setResourceImportMode(e.target.value as any)}
+                        >
+                          <option value="all">Import All Master Resources ({globalResForStep.length} items)</option>
+                          <option value="categories">Select Categories ({resCategoriesUnique.length} options)</option>
+                          <option value="specific">Select Specific Resources ({globalResForStep.length} records)</option>
+                        </select>
+                      </div>
+
+                      {/* Categories check */}
+                      {resourceImportMode === 'categories' && (
+                        <div className="space-y-1 bg-white border border-slate-150 p-2 rounded-lg max-h-24 overflow-y-auto">
+                          <label className="text-[9px] text-slate-400 font-extrabold uppercase block pb-1">Select Categories</label>
+                          {resCategoriesUnique.map((cat) => (
+                            <label key={cat} className="flex items-center gap-2 py-0.5 text-[11px] hover:text-slate-800 cursor-pointer font-medium font-sans">
+                              <input 
+                                type="checkbox"
+                                checked={selectedCategories.includes(cat)}
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedCategories([...selectedCategories, cat]);
+                                  else setSelectedCategories(selectedCategories.filter(c => c !== cat));
+                                }}
+                                className="rounded text-primary-500 w-3 h-3"
+                              />
+                              <span>{cat}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Specific resources check */}
+                      {resourceImportMode === 'specific' && (
+                        <div className="space-y-1 bg-white border border-slate-150 p-2 rounded-lg max-h-24 overflow-y-auto">
+                          <label className="text-[9px] text-slate-400 font-extrabold uppercase block pb-1">Select Resources</label>
+                          {globalResForStep.map((res) => (
+                            <label key={res.id} className="flex items-center gap-2 py-0.5 text-[11px] hover:text-slate-800 cursor-pointer font-medium font-sans">
+                              <input 
+                                type="checkbox"
+                                checked={selectedSpecificResources.includes(res.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedSpecificResources([...selectedSpecificResources, res.id]);
+                                  else setSelectedSpecificResources(selectedSpecificResources.filter(id => id !== res.id));
+                                }}
+                                className="rounded text-primary-500 w-3 h-3"
+                              />
+                              <span>[{res.code}] {res.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Pricing option */}
+                      <label className="flex items-center gap-2 cursor-pointer font-semibold py-1">
+                        <input 
+                          type="checkbox"
+                          checked={importPrices}
+                          onChange={(e) => setImportPrices(e.target.checked)}
+                          className="rounded text-primary-600 focus:ring-primary-50 w-3.5 h-3.5"
+                        />
+                        <div className="space-y-0.5 text-left">
+                          <span className="block text-xs font-bold text-slate-700">Import Sourcing Price Matrix</span>
+                          <span className="block text-[10px] text-slate-400 font-medium font-sans">Regions, standard periods, Supplier pricing and active agreements references.</span>
+                        </div>
+                      </label>
+
+                      {/* Conflict resolution strategy */}
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Conflict Resolution Strategy</label>
+                        <select
+                          className="w-full border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-xs font-bold text-slate-700 font-sans"
+                          value={resourceConflictStrategy}
+                          onChange={(e) => setResourceConflictStrategy(e.target.value as any)}
+                        >
+                          <option value="skip">Skip Existing items (Keep active catalog records)</option>
+                          <option value="update">Overwrite Workspace items with Company Master values</option>
+                          <option value="duplicate">Clone duplicate records with code suffix -DUP</option>
+                          <option value="rename">Duplicate and automatically assign numeric codes</option>
+                        </select>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-150 p-2 rounded-lg text-[10px] text-slate-400 font-medium flex gap-1 items-start leading-relaxed font-sans">
+                        <Info size={11} className="shrink-0 text-slate-400 mt-0.5" />
+                        <span><strong>Automatic dependencies importing</strong> is enabled. Any missing Categories, Measurement Units, Resource Groups, or SCM Standards will stand auto-resolved.</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* RATE ANALYSIS BLOCK */}
+                <div className="p-4 rounded-xl border border-slate-100 bg-[#f8fafc]/50 space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                    <label className="flex items-center gap-2 font-black text-xs text-slate-800 cursor-pointer user-select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={importAnalyses} 
+                        onChange={(e) => setImportAnalyses(e.target.checked)}
+                        className="rounded text-primary-600 focus:ring-primary-500 w-3.5 h-3.5"
+                      />
+                      <span>Clone Global Rate Analysis Library</span>
+                    </label>
+                    <span className="px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase bg-indigo-100 text-indigo-700 rounded-sm">ANALYSIS</span>
+                  </div>
+
+                  {importAnalyses && (
+                    <div className="space-y-3 animate-slide-up text-xs font-semibold font-sans">
+                      {/* Scope Selection */}
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Import Scope Options</label>
+                        <select
+                          className="w-full border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-xs"
+                          value={analysisImportMode}
+                          onChange={(e) => setAnalysisImportMode(e.target.value as any)}
+                        >
+                          <option value="all">Import All Rate Analyses ({globalAnalysesForStep.length} items)</option>
+                          <option value="groups">Select Analytical Groups ({analysisGroupsUnique.length} options)</option>
+                          <option value="specific">Select Specific Analyses ({globalAnalysesForStep.length} records)</option>
+                        </select>
+                      </div>
+
+                      {/* Groups checklist */}
+                      {analysisImportMode === 'groups' && (
+                        <div className="space-y-1 bg-white border border-slate-150 p-2 rounded-lg max-h-24 overflow-y-auto font-sans font-medium">
+                          <label className="text-[9px] text-slate-400 font-extrabold uppercase block pb-1">Select Groups</label>
+                          {analysisGroupsUnique.map((group) => (
+                            <label key={group} className="flex items-center gap-2 py-0.5 text-[11px] hover:text-slate-800 cursor-pointer font-medium">
+                              <input 
+                                type="checkbox"
+                                checked={selectedAnalysisCategories.includes(group)}
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedAnalysisCategories([...selectedAnalysisCategories, group]);
+                                  else setSelectedAnalysisCategories(selectedAnalysisCategories.filter(c => c !== group));
+                                }}
+                                className="rounded text-primary-500 w-3 h-3"
+                              />
+                              <span>{group}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Specific analyses checklist */}
+                      {analysisImportMode === 'specific' && (
+                        <div className="space-y-1 bg-white border border-slate-150 p-2 rounded-lg max-h-24 overflow-y-auto font-sans font-medium">
+                          <label className="text-[9px] text-slate-400 font-extrabold uppercase block pb-1">Select Analyses</label>
+                          {globalAnalysesForStep.map((an) => (
+                            <label key={an.id} className="flex items-center gap-2 py-0.5 text-[11px] hover:text-slate-800 cursor-pointer font-medium">
+                              <input 
+                                type="checkbox"
+                                checked={selectedSpecificAnalyses.includes(an.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedSpecificAnalyses([...selectedSpecificAnalyses, an.id]);
+                                  else setSelectedSpecificAnalyses(selectedSpecificAnalyses.filter(id => id !== an.id));
+                                }}
+                                className="rounded text-primary-500 w-3 h-3"
+                              />
+                              <span>[{an.code}] {an.description}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Conflict strategy */}
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Conflict Resolution Strategy</label>
+                        <select
+                          className="w-full border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-xs font-bold text-slate-700"
+                          value={analysisConflictStrategy}
+                          onChange={(e) => setAnalysisConflictStrategy(e.target.value as any)}
+                        >
+                          <option value="skip">Skip Existing analyses (Verify and lock)</option>
+                          <option value="update">Overwrite project entries with Company Master templates</option>
+                          <option value="duplicate">Clone duplicate calculations with code suffix -COPY</option>
+                          <option value="rename">Duplicate and automatically generate numeric tracking codes</option>
+                        </select>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-150 p-2 rounded-lg text-[10px] text-slate-400 font-medium flex gap-1 items-start leading-relaxed text-left">
+                        <Info size={11} className="shrink-0 text-slate-400 mt-0.5" />
+                        <span><strong>Automatic dependency resolving</strong> is enabled. Any referenced resources, labor pools, pricing parameters, or formula indices are imported automatically!</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

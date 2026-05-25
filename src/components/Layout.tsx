@@ -172,8 +172,16 @@ export const AppLayout = ({
 
   // Define two lists of menus: Portfolio view (project unselected) and Workspace view (project active)
   const portfolioMenu = [
-    { id: 'dashboard', label: 'Portfolio Dashboard', icon: LayoutDashboard },
-    { id: 'projects', label: 'All Projects', icon: Building2 },
+    { 
+      id: 'project-management', 
+      label: 'Project Management', 
+      icon: Building2,
+      subItems: [
+        { id: 'dashboard', label: 'Portfolio Dashboard' },
+        { id: 'projects', label: 'All Projects' },
+        { id: 'archived-projects', label: 'Archived Projects' }
+      ]
+    },
     { 
       id: 'tender-management', 
       label: 'Tender Management', 
@@ -190,26 +198,42 @@ export const AppLayout = ({
         { id: 'tender-reports', label: 'Tender Reports' }
       ]
     },
+    { 
+      id: 'master-data', 
+      label: 'Master Data', 
+      icon: Database,
+      subItems: [
+        { id: 'master-units', label: 'Units' },
+        { id: 'master-types', label: 'Resource Types' }
+      ]
+    },
+    {
+      id: 'master-library',
+      label: 'Master Library',
+      icon: Archive,
+      subItems: [
+        { id: 'master-resources', label: 'Resource Library' },
+        { id: 'master-analyses', label: 'Rate Analysis Library' }
+      ]
+    },
     { id: 'subcontractor-registry', label: 'Subcontractor Registry', icon: Users },
-    { id: 'archived-projects', label: 'Archived Projects', icon: Archive },
   ];
 
   const workspaceMenu = [
     { id: 'project-overview', label: 'Overview', icon: LayoutDashboard },
     { 
-      id: 'boq', 
-      label: 'BOQ Management', 
-      icon: FileText,
+      id: 'resource-management', 
+      label: 'Resource Management', 
+      icon: Warehouse,
       subItems: [
-        { id: 'boq-dashboard', label: 'BOQ Dashboard' },
-        { id: 'boq-list', label: 'BOQ Schedule List' },
-        { id: 'boq-builder', label: 'BOQ Builder / Estimator' },
-        { id: 'boq-versions', label: 'Versions & Baselines' },
-        { id: 'boq-comparison', label: 'Revision Comparison' },
-        { id: 'boq-resource-analysis', label: 'Resource Analysis' },
-        { id: 'boq-cost-summary', label: 'Cost Summary' },
-        { id: 'boq-import-export', label: 'Spreadsheet Integrator' },
-        { id: 'boq-reports', label: 'QS Reports' }
+        { id: 'resource-dashboard', label: 'Dashboard' },
+        { id: 'resource-list', label: 'Resources Ledger' },
+        { id: 'resource-categories', label: 'Categories' },
+        { id: 'resource-suppliers', label: 'Suppliers' },
+        { id: 'resource-prices', label: 'Price Matrix' },
+        { id: 'resource-analytics', label: 'Resource Analytics' },
+        { id: 'resource-import-export', label: 'Import/Export' },
+        { id: 'resource-reports', label: 'Reports' }
       ]
     },
     { 
@@ -228,30 +252,19 @@ export const AppLayout = ({
       ]
     },
     { 
-      id: 'resource-management', 
-      label: 'Resource Management', 
-      icon: Warehouse,
+      id: 'boq', 
+      label: 'BOQ Management', 
+      icon: FileText,
       subItems: [
-        { id: 'resource-dashboard', label: 'Dashboard' },
-        { id: 'resource-list', label: 'Resources Ledger' },
-        { id: 'resource-categories', label: 'Categories' },
-        { id: 'resource-suppliers', label: 'Suppliers' },
-        { id: 'resource-prices', label: 'Price Matrix' },
-        { id: 'resource-analytics', label: 'Resource Analytics' },
-        { id: 'resource-import-export', label: 'Import/Export' },
-        { id: 'resource-reports', label: 'Reports' }
-      ]
-    },
-    { 
-      id: 'master-data', 
-      label: 'Master Data', 
-      icon: Database,
-      subItems: [
-        { id: 'master-regions', label: 'Regions' },
-        { id: 'master-periods', label: 'Periods' },
-        { id: 'master-units', label: 'Units' },
-        { id: 'master-types', label: 'Resource Types' },
-        { id: 'subcontractor-registry', label: 'Subcontractor Registry' }
+        { id: 'boq-dashboard', label: 'BOQ Dashboard' },
+        { id: 'boq-list', label: 'BOQ Schedule List' },
+        { id: 'boq-builder', label: 'BOQ Builder / Estimator' },
+        { id: 'boq-versions', label: 'Versions & Baselines' },
+        { id: 'boq-comparison', label: 'Revision Comparison' },
+        { id: 'boq-resource-analysis', label: 'Resource Analysis' },
+        { id: 'boq-cost-summary', label: 'Cost Summary' },
+        { id: 'boq-import-export', label: 'Spreadsheet Integrator' },
+        { id: 'boq-reports', label: 'QS Reports' }
       ]
     },
     { 
@@ -345,6 +358,15 @@ export const AppLayout = ({
         { id: 'subcontract-variations', label: 'Variation Orders' },
         { id: 'subcontract-progress', label: 'Progress S-Curve' },
         { id: 'subcontract-reports', label: 'Commercial Reports' }
+      ]
+    },
+    { 
+      id: 'master-data', 
+      label: 'Project Master Data', 
+      icon: Database,
+      subItems: [
+        { id: 'master-regions', label: 'Regions' },
+        { id: 'master-periods', label: 'Periods' }
       ]
     },
     { id: 'project-documents', label: 'Project Documents', icon: FolderOpen },
@@ -808,7 +830,8 @@ export const AppLayout = ({
           if (id) {
             setActiveTab('project-overview');
           } else {
-            setActiveTab('dashboard');
+            setActiveTab('project-management');
+            setActiveSubTab?.('dashboard');
           }
         }}
         onOpenCreateProject={() => setIsWizardOpen(true)}

@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { MOCK_RATE_ANALYSES, MOCK_RESOURCES, MOCK_BOQ, MOCK_SOTS } from './mockData.ts';
 import { type RateAnalysis, type Resource, type BOQItem, type SOT } from './types.ts';
+import { getGlobalResources, getGlobalAnalyses } from './utils/masterLibraryImportUtils.ts';
 import { SOTDashboard } from './components/SOTDashboard.tsx';
 import { SOTList } from './components/SOTList.tsx';
 import { SOTPlanner } from './components/SOTPlanner.tsx';
@@ -114,8 +115,12 @@ function AppWorkspace() {
   const { currentUser, currentPath, users, roles, sessions, auditLogs, securitySettings, addRole, deleteRole, updateSecuritySettings } = useAuth();
 
   // Route/Tab state
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [activeSubTab, setActiveSubTab] = useState('sot-dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    return currentProject ? 'project-overview' : 'project-management';
+  });
+  const [activeSubTab, setActiveSubTab] = useState(() => {
+    return currentProject ? 'sot-dashboard' : 'dashboard';
+  });
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   // Admin sub-route tracking
@@ -129,17 +134,13 @@ function AppWorkspace() {
   // Lifted state
   const [analyses, setAnalyses] = useState<RateAnalysis[]>(MOCK_RATE_ANALYSES);
   const [resources, setResources] = useState<Resource[]>(MOCK_RESOURCES);
+  
+  // Clean persistent Global Corporate Master tables
+  const [globalResources, setGlobalResources] = useState<Resource[]>(() => getGlobalResources());
+  const [globalAnalyses, setGlobalAnalyses] = useState<RateAnalysis[]>(() => getGlobalAnalyses());
+
   const [boqList, setBoqList] = useState<BOQItem[]>(MOCK_BOQ);
   const [sots, setSots] = useState<SOT[]>(MOCK_SOTS);
-
-  // Handle post-login redirect to portfolio dashboard
-  useEffect(() => {
-    if (currentUser && currentPath === '/portfolio') {
-      // Ensure we're on the portfolio dashboard with no project selected
-      selectProject(null);
-      setActiveTab('dashboard');
-    }
-  }, [currentUser, currentPath]);
 
   // Dynamic redirect if user custom loads direct profiles
   useEffect(() => {
@@ -155,26 +156,67 @@ function AppWorkspace() {
     }
   }, [activeTab]);
 
-  // Sync tab layout when current project switches
+  // Sync tab layout and load isolated workspace sandbox data when current project switches
   useEffect(() => {
     if (currentProject) {
       // If a project gains focus, default to overview dashboard
       setActiveTab('project-overview');
+      
+      const projResSaved = localStorage.getItem(`buildops_project_resources_${currentProject.id}`);
+      if (projResSaved) {
+        try {
+          setResources(JSON.parse(projResSaved));
+        } catch (e) {
+          setResources(getGlobalResources());
+        }
+      } else {
+        const globalRes = getGlobalResources();
+        setResources(globalRes);
+        localStorage.setItem(`buildops_project_resources_${currentProject.id}`, JSON.stringify(globalRes));
+      }
+
+      const projAnalysesSaved = localStorage.getItem(`buildops_project_analyses_${currentProject.id}`);
+      if (projAnalysesSaved) {
+        try {
+          setAnalyses(JSON.parse(projAnalysesSaved));
+        } catch (e) {
+          setAnalyses(getGlobalAnalyses());
+        }
+      } else {
+        const globalAnal = getGlobalAnalyses();
+        setAnalyses(globalAnal);
+        localStorage.setItem(`buildops_project_analyses_${currentProject.id}`, JSON.stringify(globalAnal));
+      }
     } else {
       // If no project is focused, go back to portfolio scorecard
       // Preserve active tab if it's an administration tab!
       if (activeTab !== 'administrator' && !activeTab.startsWith('admin-')) {
-        setActiveTab('dashboard');
+        setActiveTab('project-management');
+        setActiveSubTab('dashboard');
       }
+      setResources(getGlobalResources());
+      setAnalyses(getGlobalAnalyses());
     }
   }, [currentProject]);
 
   const handleUpdateAnalyses = (newAnalyses: RateAnalysis[]) => {
     setAnalyses(newAnalyses);
+    if (currentProject) {
+      localStorage.setItem(`buildops_project_analyses_${currentProject.id}`, JSON.stringify(newAnalyses));
+    } else {
+      setGlobalAnalyses(newAnalyses);
+      localStorage.setItem('buildops_global_analyses', JSON.stringify(newAnalyses));
+    }
   };
 
   const handleUpdateResources = (newResources: Resource[]) => {
     setResources(newResources);
+    if (currentProject) {
+      localStorage.setItem(`buildops_project_resources_${currentProject.id}`, JSON.stringify(newResources));
+    } else {
+      setGlobalResources(newResources);
+      localStorage.setItem('buildops_global_resources', JSON.stringify(newResources));
+    }
   };
 
   const renderSOTContent = () => {
@@ -349,7 +391,7 @@ function AppWorkspace() {
           </div>
 
           <button 
-            onClick={() => { setActiveTab('projects'); }}
+            onClick={() => { setActiveTab('project-management'); setActiveSubTab('projects'); }}
             className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 cursor-pointer self-start sm:self-auto leading-none transition-all shadow-md"
           >
             Open Project Portfolio Grid →
@@ -430,20 +472,20 @@ function AppWorkspace() {
   const renderMasterData = () => {
     let childComponent;
     switch (activeSubTab) {
-      case 'master-regions':
-        childComponent = <RegionManagement />;
-        break;
-      case 'master-periods':
-        childComponent = <PeriodManagement />;
-        break;
       case 'master-units':
         childComponent = <UnitManagement />;
         break;
       case 'master-types':
         childComponent = <ResourceTypeManagement />;
         break;
-      default:
+      case 'master-regions':
         childComponent = <RegionManagement />;
+        break;
+      case 'master-periods':
+        childComponent = <PeriodManagement />;
+        break;
+      default:
+        childComponent = currentProject ? <RegionManagement /> : <UnitManagement />;
         break;
     }
 
@@ -458,7 +500,7 @@ function AppWorkspace() {
                 <span className="text-[12px] text-slate-500 font-bold">{currentProject.name} Catalog Scope</span>
               </div>
               <p className="text-[12.5px] text-slate-500">
-                You are managing shared master parameters. Changes here instantly update Rate Analyses and Bill of Quantities formulas targeting the active project: <strong>{currentProject.name}</strong>.
+                Configure workspace-specific parameters including active project Regions and dynamic reporting Periods for the active project: <strong>{currentProject.name}</strong>.
               </p>
             </div>
           </div>
@@ -469,10 +511,60 @@ function AppWorkspace() {
       );
     }
 
-    return childComponent;
+    return (
+      <div className="h-full flex flex-col gap-4 animate-fade-in">
+        <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm font-sans flex items-center justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="bg-emerald-500/10 text-emerald-600 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">Tenant Global Master data</span>
+              <span className="text-[12px] text-slate-300 font-medium">|</span>
+              <span className="text-[12px] text-slate-500 font-bold">Organization & ERP Standards</span>
+            </div>
+            <p className="text-[12.5px] text-slate-500 leading-normal">
+              Configure corporate standardized parameters including Measurement Units and Resource Types globally across all workspaces.
+            </p>
+          </div>
+        </div>
+        <div className="flex-1">
+          {childComponent}
+        </div>
+      </div>
+    );
   };
 
   const renderContent = () => {
+    // ----------------------------------------------------
+    // MASTER LIBRARY GLOBAL VIEWS (RESTRICTED TO ERP GLOBAL CATALOGS)
+    // ----------------------------------------------------
+    if (activeTab === 'master-library') {
+      if (activeSubTab === 'master-resources') {
+        return (
+          <ResourceManagement
+            resources={globalResources}
+            onUpdateResources={(updated) => {
+              setGlobalResources(updated);
+              localStorage.setItem('buildops_global_resources', JSON.stringify(updated));
+            }}
+            activeSubTab="master-resources"
+            setActiveSubTab={setActiveSubTab}
+          />
+        );
+      } else {
+        return (
+          <RateAnalysisScreen
+            analyses={globalAnalyses}
+            onUpdateAnalyses={(updated) => {
+              setGlobalAnalyses(updated);
+              localStorage.setItem('buildops_global_analyses', JSON.stringify(updated));
+            }}
+            resources={globalResources}
+            activeSubTab="master-analyses"
+            setActiveSubTab={setActiveSubTab}
+          />
+        );
+      }
+    }
+
     // ----------------------------------------------------
     // ADMINISTRATION ROUTING PANE SWITCHERS
     // ----------------------------------------------------
@@ -657,6 +749,45 @@ function AppWorkspace() {
     // If no project is selected, render global screens
     if (!currentProject) {
       switch (activeTab) {
+        case 'project-management':
+          switch (activeSubTab) {
+            case 'dashboard':
+              return renderPortfolioDashboard();
+            case 'projects':
+              return (
+                <ProjectPortfolio 
+                  statusFilter="all" 
+                  onSelectProject={selectProject}
+                  onOpenCreateModal={() => setIsWizardOpen(true)}
+                  onOpenCloneModal={(id) => {
+                    const source = projects.find(p => p.id === id);
+                    if (source) {
+                      const newName = `${source.name} (Clone)`;
+                      const newCode = `${source.code}-COPY`;
+                      cloneProject(id, newName, newCode);
+                    }
+                  }}
+                />
+              );
+            case 'archived-projects':
+              return (
+                <ProjectPortfolio 
+                  statusFilter="Archived" 
+                  onSelectProject={selectProject}
+                  onOpenCreateModal={() => setIsWizardOpen(true)}
+                  onOpenCloneModal={(id) => {
+                    const source = projects.find(p => p.id === id);
+                    if (source) {
+                      const newName = `${source.name} (Clone)`;
+                      const newCode = `${source.code}-COPY`;
+                      cloneProject(id, newName, newCode);
+                    }
+                  }}
+                />
+              );
+            default:
+              return renderPortfolioDashboard();
+          }
         case 'dashboard':
           return renderPortfolioDashboard();
         case 'projects':

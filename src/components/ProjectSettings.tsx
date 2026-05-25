@@ -12,12 +12,16 @@ import {
   FileSpreadsheet,
   Save,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Archive,
+  ArrowRightLeft,
+  CalendarDays,
+  CheckSquare
 } from 'lucide-react';
 
 export const ProjectSettings = () => {
   const { currentProject, updateProjectSettings } = useProject();
-  const [activeTab, setActiveTab] = useState<'general' | 'permissions' | 'numbering' | 'approvals'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'permissions' | 'numbering' | 'approvals' | 'imports'>('general');
   const [isSaved, setIsSaved] = useState(false);
 
   // Local state tied to current project
@@ -26,6 +30,26 @@ export const ProjectSettings = () => {
   const [risk, setRisk] = useState(currentProject?.riskLevel || 'Medium');
   const [workingCalendar, setWorkingCalendar] = useState(currentProject?.workingCalendar || 'Standard 6-Day');
   const [measureSystem, setMeasureSystem] = useState(currentProject?.measurementSystem || 'Metric');
+
+  const rawLog = currentProject ? localStorage.getItem(`buildops_project_import_log_${currentProject.id}`) : null;
+  const importLog = rawLog ? JSON.parse(rawLog) : {
+    importDate: '2026-05-18',
+    resources: {
+      importedCount: 12,
+      skippedCount: 0,
+      withPrices: 'YES',
+      importMode: 'all',
+      strategy: 'skip',
+      library: 'Corporate Master Resource Library v4.5'
+    },
+    analyses: {
+      importedCount: 6,
+      skippedCount: 0,
+      importMode: 'all',
+      strategy: 'duplicate',
+      library: 'Corporate Master Rate Analysis Library v4.5'
+    }
+  };
 
   if (!currentProject) {
     return (
@@ -84,6 +108,13 @@ export const ProjectSettings = () => {
           className={`flex items-center gap-2 p-2.5 rounded-lg text-left transition-all ${activeTab === 'approvals' ? 'bg-primary-50 text-primary-600 font-bold' : 'hover:bg-slate-50'}`}
         >
           <Workflow size={15} /> Approval Workflows
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('imports')}
+          className={`flex items-center gap-2 p-2.5 rounded-lg text-left transition-all ${activeTab === 'imports' ? 'bg-primary-50 text-primary-600 font-bold' : 'hover:bg-slate-50'}`}
+        >
+          <Archive size={15} /> Imported Master Data
         </button>
       </div>
 
@@ -236,6 +267,61 @@ export const ProjectSettings = () => {
               <div>
                 <h5 className="font-bold">Automatic Pre-Approval configuration</h5>
                 <p className="mt-0.5 leading-relaxed">Mandatory double-tier validations are currently locked checkmarks. Progress entries uploaded by <strong>Site Engineers</strong> require joint electronic signoff from the active **Project Manager** and the supervising **Consultant Architect** before becoming certified quantities.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'imports' && (
+          <div className="space-y-5 animate-slide-in">
+            <div className="border-b border-slate-100 pb-2.5">
+              <h3 className="font-bold text-md text-zentrix-blue">Sourced Enterprise Templates</h3>
+              <p className="text-slate-400 text-xs mt-0.5">Cloned company resources and standard rate calculators bound to this project workspace container.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {importLog.resources && (
+                <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-[#f8fafc]/40 space-y-3">
+                  <div className="flex items-center gap-2 text-primary-600">
+                    <Archive size={16} />
+                    <h4 className="font-extrabold text-slate-800 text-xs">Imported Resources Library</h4>
+                  </div>
+                  <div className="space-y-1.5 text-slate-500 text-[11.5px] font-sans">
+                    <div className="flex justify-between border-b border-slate-50 pb-1"><span>Import Date:</span> <strong className="text-slate-700 font-mono font-medium">{importLog.importDate}</strong></div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1"><span>Cloned Items:</span> <strong className="text-slate-700">{importLog.resources.importedCount} resources</strong></div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1"><span>Skipped Duplicates:</span> <strong className="text-slate-700">{importLog.resources.skippedCount} items</strong></div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1"><span>Sourced Rates:</span> <span className="text-emerald-600 font-bold">{importLog.resources.withPrices}</span></div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1"><span>Conflict Mode:</span> <strong className="text-slate-700 uppercase tracking-widest text-[9px] font-extrabold">{importLog.resources.strategy}</strong></div>
+                    <div className="flex justify-between pt-1"><span>Reference Library:</span> <strong className="text-slate-700">{importLog.resources.library}</strong></div>
+                  </div>
+                </div>
+              )}
+
+              {importLog.analyses && (
+                <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-[#f8fafc]/40 space-y-3">
+                  <div className="flex items-center gap-2 text-indigo-600">
+                    <Sliders size={16} />
+                    <h4 className="font-extrabold text-slate-800 text-xs">Imported Rate Analysis templates</h4>
+                  </div>
+                  <div className="space-y-1.5 text-slate-500 text-[11.5px] font-sans">
+                    <div className="flex justify-between border-b border-slate-50 pb-1"><span>Import Date:</span> <strong className="text-slate-700 font-mono font-medium">{importLog.importDate}</strong></div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1"><span>Cloned Items:</span> <strong className="text-slate-700">{importLog.analyses.importedCount} rate parameters</strong></div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1"><span>Conflict Mode:</span> <strong className="text-slate-700 uppercase tracking-widest text-[9px] font-extrabold">{importLog.analyses.strategy}</strong></div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1"><span>Sourcing Scope:</span> <strong className="text-slate-700">{importLog.analyses.importMode}</strong></div>
+                    <div className="flex justify-between border-b border-slate-50 pb-1"><span>Linked Dependencies:</span> <span className="text-slate-700 font-bold">Auto Resolved Copy</span></div>
+                    <div className="flex justify-between pt-1"><span>Reference Library:</span> <strong className="text-slate-700">{importLog.analyses.library}</strong></div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 bg-emerald-50 text-emerald-800 rounded-lg text-xs leading-relaxed flex gap-2 border border-emerald-100 font-sans">
+              <CheckSquare size={16} className="shrink-0 text-emerald-600 mt-0.5" />
+              <div>
+                <h5 className="font-bold">Project Sandbox Integrity Verification</h5>
+                <p className="mt-0.5 text-slate-500 text-[11px] leading-relaxed">
+                  These records are safely stored inside local workspace indexes. Any subsequent revisions or custom edits you perform in the Resource Matrix or Rate Formulation pages are strictly isolated and contain no retroactive callbacks to the Corporate Master database indices.
+                </p>
               </div>
             </div>
           </div>
