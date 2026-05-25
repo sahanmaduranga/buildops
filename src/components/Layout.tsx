@@ -187,14 +187,8 @@ export const AppLayout = ({
       label: 'Tender Management', 
       icon: Briefcase,
       subItems: [
-        { id: 'tender-dashboard', label: 'Dashboard' },
-        { id: 'tender-opportunities', label: 'Tender Opportunities' },
-        { id: 'tender-boq', label: 'Tender BOQ' },
-        { id: 'tender-estimation', label: 'Estimation' },
-        { id: 'tender-supplier-quotes', label: 'Supplier Quotations' },
-        { id: 'tender-subcontractor-quotes', label: 'Subcontractor Quotations' },
-        { id: 'tender-revisions', label: 'Tender Revisions' },
-        { id: 'tender-bid-submission', label: 'Bid Submission' },
+        { id: 'tender-dashboard', label: 'Tender Dashboard' },
+        { id: 'tender-list', label: 'All Tenders' },
         { id: 'tender-reports', label: 'Tender Reports' }
       ]
     },

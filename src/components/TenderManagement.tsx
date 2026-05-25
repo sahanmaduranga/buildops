@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Briefcase, 
   Plus, 
@@ -6,37 +6,28 @@ import {
   FileText, 
   DollarSign, 
   TrendingUp, 
-  Clock, 
   CheckCircle, 
   XCircle, 
   MapPin, 
   Calendar, 
   User, 
   ArrowRight, 
-  Filter, 
   Sparkles, 
-  Grid, 
-  Layers, 
   Building, 
-  ChevronRight, 
   Edit, 
   Trash2, 
-  Upload, 
-  Tag, 
-  Settings,
-  Shield, 
   Sliders, 
   RefreshCw, 
-  Flame, 
   FileCheck,
-  ChevronDown,
-  ArrowUpRight,
   Calculator,
-  ChevronLeft
+  ChevronLeft,
+  ChevronRight,
+  PlusCircle,
+  Tag
 } from 'lucide-react';
-import { useTender, TenderOpportunity, TenderBOQItem, SupplierQuotation, SubcontractorQuotation, TenderRevision, BidSubmission } from '../context/TenderContext.tsx';
+import { useTender, TenderOpportunity, TenderBOQItem, SupplierQuotation, SubcontractorQuotation, BidSubmission } from '../context/TenderContext.tsx';
 import { formatCurrency, cn } from '../lib/utils.ts';
-import { MOCK_RATE_ANALYSES, MOCK_RESOURCES } from '../mockData.ts';
+import { MOCK_RATE_ANALYSES } from '../mockData.ts';
 
 export const TenderManagementShell: React.FC<{
   activeSubTab: string;
@@ -47,7 +38,6 @@ export const TenderManagementShell: React.FC<{
     tenderBoqs, 
     supplierQuotations, 
     subcontractorQuotations, 
-    tenderRevisions, 
     bidSubmissions,
     selectedTenderId, 
     setSelectedTenderId,
@@ -56,22 +46,42 @@ export const TenderManagementShell: React.FC<{
     deleteTender,
     updateTenderBoq,
     addSupplierQuotation,
-    updateSupplierQuotation,
     addSubcontractorQuotation,
-    updateSubcontractorQuotation,
-    addTenderRevision,
-    updateTenderRevision,
     addBidSubmission,
-    updateBidSubmission,
     convertTenderToProject
   } = useTender();
 
   // Selected Tender Scope
   const activeTender = useMemo(() => {
-    return tenders.find(t => t.id === selectedTenderId) || tenders[0] || null;
+    return tenders.find(t => t.id === selectedTenderId) || null;
   }, [tenders, selectedTenderId]);
 
-  // If active tab changes sub-routes or is clicked
+  // Linear Step Tracker State (1 to 6)
+  const [activeStep, setActiveStep] = useState<number>(1);
+
+  // Automatically advance or position the step based on active tender status
+  useEffect(() => {
+    if (activeTender) {
+      if (activeTender.status === 'Draft') {
+        setActiveStep(1);
+      } else if (activeTender.status === 'Estimating') {
+        setActiveStep(2);
+      } else if (activeTender.status === 'Reviewing') {
+        setActiveStep(4);
+      } else if (activeTender.status === 'Submitted') {
+        setActiveStep(5);
+      } else if (activeTender.status === 'Awarded' || activeTender.status === 'Lost') {
+        setActiveStep(6);
+      }
+    }
+  }, [selectedTenderId, activeTender?.status]);
+
+  // Reset selected tender when sub-tab changes, so they see the appropriate global landing view
+  useEffect(() => {
+    setSelectedTenderId(null);
+  }, [activeSubTab, setSelectedTenderId]);
+
+  // Filters for Tender Directory
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [typeFilter, setTypeFilter] = useState<string>('All');
@@ -88,7 +98,7 @@ export const TenderManagementShell: React.FC<{
     status: 'Draft',
     submissionDate: '2026-07-31',
     estimatedValue: 0,
-    assignedEstimator: 'Robert Chen (Lead QS)',
+    assignedEstimator: 'Suren Jayasinghe (Lead QS)',
     currency: 'LKR',
     description: '',
     submissionMethod: 'Electronic Portal',
@@ -97,7 +107,7 @@ export const TenderManagementShell: React.FC<{
     overheadPercent: 6,
   });
 
-  // Quotation drawer / forms
+  // Quotation forms
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [quoteType, setQuoteType] = useState<'supplier' | 'subcontractor'>('supplier');
   const [supplierFormData, setSupplierFormData] = useState<Omit<SupplierQuotation, 'id'>>({
@@ -109,8 +119,7 @@ export const TenderManagementShell: React.FC<{
     quotationDate: new Date().toISOString().split('T')[0],
     deliveryPeriod: 'Within 7 Days',
     status: 'Received',
-    remarks: '',
-    attachmentName: ''
+    remarks: ''
   });
   const [subconFormData, setSubconFormData] = useState<Omit<SubcontractorQuotation, 'id'>>({
     tenderId: '',
@@ -121,24 +130,18 @@ export const TenderManagementShell: React.FC<{
     submissionDate: new Date().toISOString().split('T')[0],
     duration: '3 Months',
     status: 'Submitted',
-    remarks: '',
-    attachmentName: ''
+    remarks: ''
   });
 
-  // Revisions & Bid Submission States
-  const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
-  const [revNotes, setRevNotes] = useState('');
-  const [revEstimate, setRevEstimate] = useState(0);
-
-  const [isSubmitBidModalOpen, setIsSubmitBidModalOpen] = useState(false);
-  const [discountPct, setDiscountPct] = useState(0);
+  // Submission States
   const [submissionNotes, setSubmissionNotes] = useState('');
+  const [discountPct, setDiscountPct] = useState(0);
 
   // Conversion overlay
   const [isConvertingOverlayOpen, setIsConvertingOverlayOpen] = useState(false);
   const [conversionResult, setConversionResult] = useState<{ projectId: string; boqId: string } | null>(null);
 
-  // Filter Tenders
+  // Filtering Tenders (Comprehensive of all statuses)
   const filteredTenders = useMemo(() => {
     return tenders.filter(t => {
       const matchSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -149,6 +152,18 @@ export const TenderManagementShell: React.FC<{
       return matchSearch && matchStatus && matchType;
     });
   }, [tenders, searchTerm, statusFilter, typeFilter]);
+
+  // Filtering Tenders for Dashboard (Active status only: Draft, Estimating, Reviewing, Submitted)
+  const filteredActiveTenders = useMemo(() => {
+    return tenders.filter(t => {
+      const isActive = t.status !== 'Awarded' && t.status !== 'Lost';
+      const matchSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          t.tenderNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          t.client.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchType = typeFilter === 'All' || t.tenderType === typeFilter;
+      return isActive && matchSearch && matchType;
+    });
+  }, [tenders, searchTerm, typeFilter]);
 
   // Active sub-sections helper for active tender BOQ
   const activeTenderBOQItems = useMemo(() => {
@@ -165,11 +180,6 @@ export const TenderManagementShell: React.FC<{
     if (!activeTender) return [];
     return subcontractorQuotations.filter(q => q.tenderId === activeTender.id);
   }, [subcontractorQuotations, activeTender]);
-
-  const activeTenderRevisions = useMemo(() => {
-    if (!activeTender) return [];
-    return tenderRevisions.filter(r => r.tenderId === activeTender.id);
-  }, [tenderRevisions, activeTender]);
 
   const activeTenderSubmission = useMemo(() => {
     if (!activeTender) return null;
@@ -189,7 +199,7 @@ export const TenderManagementShell: React.FC<{
     remarks: string;
     parentId: string;
   }>({
-    code: 'B.4',
+    code: 'B.1',
     description: '',
     unit: 'm3',
     quantity: 1,
@@ -204,8 +214,8 @@ export const TenderManagementShell: React.FC<{
   const [editItemQty, setEditItemQty] = useState(0);
   const [editItemRate, setEditItemRate] = useState(0);
 
-  // Calculations for Active Tender
-  const tenderTotals = useMemo(() => {
+  // Calculations for Active Tender pricing
+  const pricingSummary = useMemo(() => {
     if (!activeTender) return { baseCost: 0, overheads: 0, profit: 0, finalBid: 0 };
     const items = tenderBoqs[activeTender.id] || [];
     const baseCost = items
@@ -219,25 +229,20 @@ export const TenderManagementShell: React.FC<{
     return { baseCost, overheads, profit, finalBid };
   }, [tenderBoqs, activeTender]);
 
-  // Handlers
+  // Submit handers
   const handleCreateTenderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTender.name || !newTender.client) {
-      alert('Please fill out all required fields.');
       return;
     }
     const createdId = addTender(newTender);
     setIsCreateModalOpen(false);
     setSelectedTenderId(createdId);
-    setActiveSubTab('tender-opportunities');
+    setActiveStep(1);
   };
 
   const handleConvertTender = () => {
     if (!activeTender) return;
-    if (activeTender.status !== 'Awarded') {
-      alert('Only Awarded tenders can be converted to Post-Contract Projects!');
-      return;
-    }
     setIsConvertingOverlayOpen(true);
     setConversionResult(null);
 
@@ -247,9 +252,9 @@ export const TenderManagementShell: React.FC<{
         setConversionResult(res);
       } else {
         setIsConvertingOverlayOpen(false);
-        alert('Failed to convert tender to project.');
+        alert('Failed to convert tender to project workspace.');
       }
-    }, 1200);
+    }, 1500);
   };
 
   const handleCreateBoqItem = (e: React.FormEvent) => {
@@ -275,12 +280,12 @@ export const TenderManagementShell: React.FC<{
     items.push(itemToAdd);
     updateTenderBoq(activeTender.id, items);
     setIsAddBoqItemOpen(false);
-    setNewBoqItem({ code: '', description: '', unit: 'm3', quantity: 1, rate: 0, rateAnalysisId: '', remarks: '', parentId: '' });
+    setNewBoqItem({ code: 'B.5', description: '', unit: 'm3', quantity: 1, rate: 0, rateAnalysisId: '', remarks: '', parentId: '' });
   };
 
   const handleDeleteBoqItem = (itemId: string) => {
     if (!activeTender) return;
-    if (confirm('Delete this BOQ entry?')) {
+    if (confirm('Are you sure you want to delete this BOQ item?')) {
       const updated = activeTenderBOQItems.filter(i => i.id !== itemId);
       updateTenderBoq(activeTender.id, updated);
     }
@@ -322,59 +327,50 @@ export const TenderManagementShell: React.FC<{
     setIsQuoteModalOpen(false);
   };
 
-  const handleAddRevisionSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeTender) return;
-    addTenderRevision({
-      tenderId: activeTender.id,
-      revisionNo: `Addendum ${activeTenderRevisions.length + 1}`,
-      description: revNotes,
-      date: new Date().toISOString().split('T')[0],
-      revisedBy: 'Sarah Johnson (QS)',
-      status: 'Active',
-      revisedEstimate: revEstimate || tenderTotals.baseCost
-    });
-    setIsRevisionModalOpen(false);
-    setRevNotes('');
-    setRevEstimate(0);
-  };
-
   const handleAddSubmissionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeTender) return;
+    const subNo = `SUB-TND-${Math.floor(1000 + Math.random() * 9000)}`;
     addBidSubmission({
       tenderId: activeTender.id,
-      submissionNo: `SUB-TND-${Math.floor(1000 + Math.random() * 9000)}`,
+      submissionNo: subNo,
       submittedDate: new Date().toISOString().split('T')[0],
-      submittedAmount: tenderTotals.finalBid,
+      submittedAmount: pricingSummary.finalBid,
       discountPercent: discountPct,
-      finalBidAmount: tenderTotals.finalBid * (1 - (discountPct / 100)),
+      finalBidAmount: pricingSummary.finalBid * (1 - (discountPct / 100)),
       notes: submissionNotes,
-      status: 'Pending',
-      attachmentName: 'Bid_Proposal_Document.zip'
+      status: 'Pending'
     });
     updateTender(activeTender.id, { status: 'Submitted' });
-    setIsSubmitBidModalOpen(false);
-    setSubmissionNotes('');
-    setDiscountPct(0);
+    setActiveStep(6);
   };
 
+  // Human steps labels
+  const steps = [
+    { id: 1, name: 'Tender Details', desc: 'Scope Definitions' },
+    { id: 2, name: 'BOQ Estimates', desc: 'Priced List' },
+    { id: 3, name: 'Trade Quotes', desc: 'Vendor Proposals' },
+    { id: 4, name: 'Cost margins', desc: 'Slide Coefficients' },
+    { id: 5, name: 'Bid Submission', desc: 'Final Envelope' },
+    { id: 6, name: 'Award & Launch', desc: 'Project Handover' }
+  ];
+
   return (
-    <div className="h-full flex flex-col gap-6 font-sans">
+    <div className="h-full flex flex-col gap-6 font-sans text-[13px] text-slate-700">
       
-      {/* Dynamic Conversion Progress Overlay */}
+      {/* 1. Loading Overlay for converter conversion progress */}
       {isConvertingOverlayOpen && (
-        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-fade-in text-[13px]">
-          <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl p-8 max-w-lg w-full text-center space-y-6 animate-scale-up">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-fade-in" id="conversion-overlay">
+          <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl p-8 max-w-lg w-full text-center space-y-6">
             {!conversionResult ? (
               <div className="space-y-4 py-8">
-                <RefreshCw size={44} className="mx-auto text-primary-600 animate-spin" />
+                <RefreshCw size={44} className="mx-auto text-indigo-650 animate-spin" />
                 <h3 className="text-lg font-black text-slate-800">Processing Pre-Contract Commercial Data</h3>
                 <p className="text-slate-500 max-w-sm mx-auto leading-relaxed">
                   Synthesizing active Tender estimates, structuring master BOQ divisions, parsing overhead parameters, and generating live Post-Contract workspace...
                 </p>
                 <div className="w-48 h-1 bg-slate-100 rounded-full mx-auto overflow-hidden">
-                  <div className="h-full bg-primary-600 rounded-full animate-progress-bar w-1/2"></div>
+                  <div className="h-full bg-indigo-600 rounded-full animate-pulse w-full"></div>
                 </div>
               </div>
             ) : (
@@ -382,7 +378,7 @@ export const TenderManagementShell: React.FC<{
                 <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600 mb-2">
                   <CheckCircle size={28} />
                 </div>
-                <h3 className="text-lg font-black text-center text-slate-900 leading-none">Tender Workspace Converted Successfully!</h3>
+                <h3 className="text-lg font-black text-center text-slate-900 leading-none">Tender Handed Over & Converted!</h3>
                 <p className="text-slate-500 text-center text-xs">
                   Representative pre-contract estimation data carried accurately into execution phase modules.
                 </p>
@@ -406,277 +402,749 @@ export const TenderManagementShell: React.FC<{
                   </div>
                 </div>
 
-                <div className="pt-2 text-center">
-                  <p className="text-[11px] text-amber-500 font-bold animate-pulse">
-                    ♻ Refreshed layout context safely. Syncing workspace switcher state...
-                  </p>
+                <div className="pt-2 text-center text-xs text-amber-500 font-bold animate-pulse">
+                  ♻ Reloading workspace state cleanly...
                 </div>
 
-                <button 
-                  onClick={() => {
-                    setIsConvertingOverlayOpen(false);
-                    // Select project and refresh page to load context updates
-                    localStorage.setItem('buildops_selected_project_id', conversionResult.projectId);
-                    window.location.reload();
-                  }}
-                  className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  Launch Post-Contract Project Workspace <ArrowRight size={14} />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}      {/* Integrated Workspace Architecture */}
-      {!selectedTenderId && activeSubTab !== 'tender-dashboard' && (
-        <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
-          
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-2 border-b border-slate-100">
-            <div className="space-y-1">
-              <span className="text-[11px] uppercase tracking-widest font-black text-slate-400">Pre-Contract Division</span>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none flex items-center gap-2">
-                <Briefcase className="text-primary-600" size={20} /> Tender Directory Deck
-              </h2>
-              <p className="text-slate-550 text-xs">Launch a customized, isolated pre-contract workspace by clicking any tender opportunity below.</p>
-            </div>
-            
-            <button 
-              onClick={() => {
-                setNewTender({
-                  tenderNo: `TND-2026-COL-${Math.floor(100 + Math.random() * 900)}`,
-                  name: '',
-                  client: '',
-                  consultant: '',
-                  location: '',
-                  tenderType: 'Building',
-                  status: 'Draft',
-                  submissionDate: '2026-07-31',
-                  estimatedValue: 0,
-                  assignedEstimator: 'Suren Jayasinghe (Lead PM)',
-                  currency: 'LKR',
-                  description: '',
-                  submissionMethod: 'Electronic Portal',
-                  notes: '',
-                  marginPercent: 12,
-                  overheadPercent: 6,
-                });
-                setIsCreateModalOpen(true);
-              }}
-              className="px-4 py-2 bg-primary-600 font-extrabold hover:bg-primary-700 text-white text-xs rounded-xl flex items-center gap-1.5 shadow transition-all hover:shadow-lg cursor-pointer"
-            >
-              <Plus size={15} /> Create Tender Opportunity
-            </button>
-          </div>
-
-          {/* Directory Context Alert for other subtabs */}
-          {activeSubTab !== 'tender-dashboard' && activeSubTab !== 'tender-opportunities' && (
-            <div className="bg-amber-50 border border-amber-200/60 rounded-xl p-4 flex items-start gap-3 text-amber-800">
-              <span className="p-1 px-2 bg-amber-100 rounded text-xs font-black font-mono">WORKSPACE REQUIRED</span>
-              <div className="space-y-0.5">
-                <p className="font-bold text-xs">A specific tender workspace is required to view the requested tab "{activeSubTab.replace('tender-', '').toUpperCase()}".</p>
-                <p className="text-[11px] text-amber-700/90 leading-tight">Please select one of the professional tender opportunities below to launch its isolated editing suite.</p>
-              </div>
-            </div>
-          )}
-
-          {/* Overarching Pre-Contract Metrics Row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-xs">
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Active Opportunities</p>
-              <h3 className="text-xl font-black text-slate-800 mt-1">{tenders.filter(t => ['Draft', 'Estimating', 'Reviewing'].includes(t.status)).length} Tenders</h3>
-              <p className="text-[10.5px] text-slate-400 mt-1">Estimators preparing bids</p>
-            </div>
-            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-xs">
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Submitted Envelopes</p>
-              <h3 className="text-xl font-black text-purple-700 mt-1">{tenders.filter(t => t.status === 'Submitted').length} Pending</h3>
-              <p className="text-[10.5px] text-slate-400 mt-1">Pending client responses</p>
-            </div>
-            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-xs">
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Tenders Won / Awarded</p>
-              <h3 className="text-xl font-black text-emerald-600 mt-1">{tenders.filter(t => t.status === 'Awarded').length} Awarded</h3>
-              <p className="text-[10.5px] text-emerald-600/90 font-semibold mt-1">Ready for Post-Contract build</p>
-            </div>
-            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-xs">
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Consolidated Value Pool</p>
-              <h3 className="text-xl font-black text-slate-800 mt-1">{formatCurrency(tenders.reduce((sum, t) => sum + t.estimatedValue, 0))} LKR</h3>
-              <p className="text-[10.5px] text-slate-400 mt-1">Est. commercial baseline</p>
-            </div>
-          </div>
-
-          {/* Directory Ledger Filters & Card Deck */}
-          <div className="bg-slate-50 border border-slate-200/85 rounded-xl p-4.5 space-y-4">
-            
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3.5 pb-3 border-b border-slate-205">
-              <h3 className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5 uppercase tracking-wide">
-                 Opportunities Filter Base 
-              </h3>
-              
-              <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-                <div className="relative flex-1 md:flex-none md:w-[220px]">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Search tender name/number..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none"
-                  />
+                <div className="text-slate-400 text-[11px] text-center italic">
+                  Refreshing local switch states inside project controls.
                 </div>
-                
-                <select 
-                  value={statusFilter} 
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-xs outline-none font-bold cursor-pointer"
-                >
-                  <option value="All">All Statuses</option>
-                  <option value="Draft">Draft</option>
-                  <option value="Estimating">Estimating</option>
-                  <option value="Reviewing">Reviewing</option>
-                  <option value="Submitted">Submitted</option>
-                  <option value="Awarded">Awarded</option>
-                  <option value="Lost">Lost</option>
-                </select>
-
-                <select 
-                  value={typeFilter} 
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-xs outline-none font-bold cursor-pointer"
-                >
-                  <option value="All">All Divisions</option>
-                  <option value="Building">Building Only</option>
-                  <option value="Infrastructure">Infrastructure Only</option>
-                  <option value="Road">Road Only</option>
-                  <option value="Civil">Civil Only</option>
-                  <option value="MEP">MEP Only</option>
-                </select>
-              </div>
-            </div>
-
-            {/* List of Tenders Cards Grid */}
-            {filteredTenders.length === 0 ? (
-              <div className="text-center py-16 bg-white border border-slate-150 rounded-xl">
-                <Briefcase className="mx-auto text-slate-300 mb-2" size={32} />
-                <p className="font-bold text-slate-700">No Pre-Contract Opportunities Found</p>
-                <p className="text-xs text-slate-400">Try loosening your search terms or classification filters.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5">
-                {filteredTenders.map((t) => {
-                  return (
-                    <div 
-                      key={t.id} 
-                      className="bg-white border border-slate-200 hover:border-primary-500 rounded-2xl p-5 flex flex-col justify-between shadow-xs hover:shadow-md transition-all group scale-100 hover:scale-[1.01]"
-                    >
-                      <div className="space-y-3.5">
-                        <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
-                          <span className="font-mono text-xs font-black text-primary-700 bg-primary-50 border border-primary-100 px-2 py-0.5 rounded leading-none">
-                            {t.tenderNo}
-                          </span>
-                          <span className={cn(
-                            "text-[10px] font-black uppercase px-2 py-0.5 rounded-full border leading-tight",
-                            t.status === 'Awarded' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
-                            t.status === 'Submitted' ? "bg-purple-50 text-purple-700 border-purple-100" :
-                            t.status === 'Estimating' ? "bg-amber-50 text-amber-700 border-amber-100" :
-                            t.status === 'Reviewing' ? "bg-indigo-50 text-indigo-700 border-indigo-100" :
-                            t.status === 'Lost' ? "bg-red-50 text-red-700 border-red-100" :
-                            "bg-slate-100 text-slate-700 border-slate-205"
-                          )}>
-                            ● {t.status}
-                          </span>
-                        </div>
-
-                        <div className="space-y-1">
-                          <h4 className="font-extrabold text-slate-800 text-sm leading-snug tracking-tight group-hover:text-primary-800 transition-colors">
-                            {t.name}
-                          </h4>
-                          <p className="text-xs text-slate-400 font-medium">Client: {t.client}</p>
-                          <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                            <MapPin size={11} className="text-slate-400" /> {t.location}
-                          </p>
-                        </div>
-
-                        {/* Visual Non-Clickable Card Progress Pipeline Indicator */}
-                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 space-y-1.5">
-                          <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-slate-400">
-                            <span>Pipeline Stage</span>
-                            <span className="text-primary-700 font-bold">{t.status}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].map((step, sIdx) => {
-                              const stepIndex = ['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].indexOf(t.status);
-                              const currentStageIndex = ['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].indexOf(step);
-                              const isCompletedOrActive = stepIndex >= currentStageIndex && t.status !== 'Lost';
-                              
-                              return (
-                                <div 
-                                  key={step} 
-                                  className={cn(
-                                    "h-1 px-1 rounded-full flex-1",
-                                    isCompletedOrActive ? (
-                                      t.status === 'Awarded' ? "bg-emerald-500" : "bg-primary-600"
-                                    ) : "bg-slate-200"
-                                  )}
-                                  title={step}
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-[11px] pt-1.5 border-t border-slate-100">
-                          <div>
-                            <span className="text-slate-400 uppercase tracking-widest text-[9px] font-bold block">Closing Date</span>
-                            <strong className="text-slate-700 font-mono text-[11.5px]">{t.submissionDate}</strong>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-slate-400 uppercase tracking-widest text-[9px] font-bold block">Est. Bid Value</span>
-                            <strong className="text-slate-800 font-bold text-[11.5px]">{formatCurrency(t.estimatedValue)} LKR</strong>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setSelectedTenderId(t.id);
-                          if (activeSubTab === 'tender-dashboard') {
-                            setActiveSubTab('tender-opportunities');
-                          }
-                        }}
-                        className="w-full mt-4.5 py-2.5 bg-slate-900 group-hover:bg-primary-650 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border border-transparent"
-                      >
-                        Manage Tender Workspace <ArrowRight size={13} className="stroke-[2.5]" />
-                      </button>
-                    </div>
-                  );
-                })}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* 2. Workspace Tabs Route: If we are not on the general dashboard, choose between selected tender workspace and selection ledger */}
+      {/* 2. Directory / Ledger/ Reports Views (Shown if no tender is active) */}
+      {!selectedTenderId && (
+        <div className="space-y-6 animate-fade-in" id="tender-directory">
+          
+          {/* ======================================= */}
+          {/* CASE A: TENDER DASHBOARD (ACTIVE ONLY)   */}
+          {/* ======================================= */}
+          {activeSubTab === 'tender-dashboard' && (
+            <div className="space-y-6" id="tender-subtab-dashboard">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-4 border-b border-slate-100">
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Active Bidding Pipeline</span>
+                  <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none flex items-center gap-2 mt-1">
+                    <Briefcase className="text-indigo-650" size={22} /> Live Tender Workspace Dashboard
+                  </h1>
+                  <p className="text-slate-500 text-xs">A comprehensive dashboard presenting only ongoing, active pre-contract opportunities currently in negotiation or calculation phase.</p>
+                </div>
+                
+                <button 
+                  id="btn-create-tender"
+                  onClick={() => {
+                    setNewTender({
+                      tenderNo: `TND-2026-COL-${Math.floor(100 + Math.random() * 900)}`,
+                      name: '',
+                      client: '',
+                      consultant: '',
+                      location: '',
+                      tenderType: 'Building',
+                      status: 'Draft',
+                      submissionDate: '2026-07-31',
+                      estimatedValue: 0,
+                      assignedEstimator: 'Suren Jayasinghe (Lead QS)',
+                      currency: 'LKR',
+                      description: '',
+                      submissionMethod: 'Electronic Portal',
+                      notes: '',
+                      marginPercent: 12,
+                      overheadPercent: 6,
+                    });
+                    setIsCreateModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-indigo-600 font-bold hover:bg-indigo-700 text-white text-xs rounded-xl flex items-center gap-1.5 shadow transition-all cursor-pointer"
+                >
+                  <Plus size={15} /> Initiate New Tender
+                </button>
+              </div>
+
+              {/* Active-only Metrics Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" id="active-tender-stats">
+                <div className="bg-white border border-slate-205 rounded-xl p-4 shadow-sm">
+                  <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Active Pipeline</p>
+                  <h3 className="text-xl font-bold text-indigo-700 mt-1">
+                    {tenders.filter(t => t.status !== 'Awarded' && t.status !== 'Lost').length} Live Bids
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Actively tracked proposals</p>
+                </div>
+                <div className="bg-white border border-slate-205 rounded-xl p-4 shadow-sm">
+                  <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Bids Under Calculation</p>
+                  <h3 className="text-xl font-bold text-amber-600 mt-1">
+                    {tenders.filter(t => ['Draft', 'Estimating', 'Reviewing'].includes(t.status)).length} Opportunities
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">QS preparing BOQ models</p>
+                </div>
+                <div className="bg-white border border-slate-205 rounded-xl p-4 shadow-sm">
+                  <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Envelopes Submitted</p>
+                  <h3 className="text-xl font-bold text-indigo-650 mt-1">
+                    {tenders.filter(t => t.status === 'Submitted').length} Submitted
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Pending client award board</p>
+                </div>
+                <div className="bg-white border border-slate-205 rounded-xl p-4 shadow-sm">
+                  <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Estimated Pipeline Value</p>
+                  <h3 className="text-xl font-bold text-slate-800 mt-1">
+                    {formatCurrency(tenders.filter(t => t.status !== 'Awarded' && t.status !== 'Lost').reduce((sum, t) => sum + t.estimatedValue, 0))} LKR
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Active combined valuation</p>
+                </div>
+              </div>
+
+              {/* Dynamic Filter Layout */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                  <span className="font-extrabold text-slate-700 text-xs uppercase tracking-wide flex items-center gap-2">
+                    <Sparkles size={14} className="text-indigo-600" /> Active Pre-Contract Bidding List
+                  </span>
+                  
+                  <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                    <div className="relative">
+                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        type="text" 
+                        placeholder="Search active tender name/client..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none w-52"
+                      />
+                    </div>
+                    
+                    <select 
+                      value={typeFilter} 
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-xs outline-none font-semibold cursor-pointer"
+                    >
+                      <option value="All">All Sectors</option>
+                      <option value="Building">Building Only</option>
+                      <option value="Infrastructure">Infrastructure Only</option>
+                      <option value="Road">Road Only</option>
+                      <option value="Civil">Civil Only</option>
+                      <option value="MEP">MEP Only</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Grid */}
+                {filteredActiveTenders.length === 0 ? (
+                  <div className="text-center py-16 bg-white border border-slate-150 rounded-xl">
+                    <Briefcase className="mx-auto text-slate-300 mb-2 font-light" size={32} />
+                    <p className="font-bold text-slate-600 text-xs">No Active Tenders Found</p>
+                    <p className="text-[11px] text-slate-400">All current opportunities have been awarded, lost, or archived. Create a new one above!</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {filteredActiveTenders.map((t) => {
+                      const estCost = tenderBoqs[t.id] ? 
+                        tenderBoqs[t.id]
+                          .filter(i => i.type === 'ITEM')
+                          .reduce((sum, item) => sum + (item.amount || 0), 0)
+                        : t.estimatedValue;
+
+                      return (
+                        <div 
+                          key={t.id} 
+                          className="bg-white border border-slate-200 hover:border-indigo-500 rounded-2xl p-5 flex flex-col justify-between shadow-xs hover:shadow-md transition-all group duration-200"
+                        >
+                          <div className="space-y-3.5">
+                            <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                              <span className="font-mono text-[11px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded leading-none border border-indigo-100">
+                                {t.tenderNo}
+                              </span>
+                              <span className={cn(
+                                "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border leading-tight",
+                                t.status === 'Submitted' ? "bg-indigo-50 text-indigo-700 border-indigo-100" :
+                                t.status === 'Estimating' ? "bg-amber-50 text-amber-700 border-amber-100" :
+                                t.status === 'Reviewing' ? "bg-purple-50 text-purple-700 border-purple-100" :
+                                "bg-slate-100 text-slate-700 border-slate-200"
+                              )}>
+                                ● {t.status}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <h4 className="font-bold text-slate-900 text-sm leading-snug tracking-tight group-hover:text-indigo-700 duration-150 truncate" title={t.name}>
+                                {t.name}
+                              </h4>
+                              <p className="text-xs text-slate-400 font-medium truncate">Client: {t.client}</p>
+                              <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                                <MapPin size={11} className="text-slate-400 shrink-0" /> <span className="truncate">{t.location}</span>
+                              </p>
+                            </div>
+
+                            {/* Miniature pipeline bar */}
+                            <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 space-y-1">
+                              <div className="flex justify-between text-[9px] font-bold text-slate-400">
+                                <span>Bidding Phase Progress</span>
+                                <span className="text-indigo-600 uppercase">{t.status}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {['Draft', 'Estimating', 'Reviewing', 'Submitted'].map((step, idx) => {
+                                  const stepIdx = ['Draft', 'Estimating', 'Reviewing', 'Submitted'].indexOf(t.status);
+                                  const isFilled = stepIdx >= idx;
+                                  return (
+                                    <div 
+                                      key={step} 
+                                      className={cn(
+                                        "h-1 rounded-full flex-1",
+                                        isFilled ? "bg-indigo-600" : "bg-slate-200"
+                                      )}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-100">
+                              <div>
+                                <span className="text-slate-400 text-[9px] font-bold block uppercase tracking-wider">Closing Date</span>
+                                <strong className="text-slate-700 font-mono">{t.submissionDate}</strong>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-slate-400 text-[9px] font-bold block uppercase tracking-wider">Estimations sum</span>
+                                <strong className="text-slate-800">{formatCurrency(estCost)} LKR</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setSelectedTenderId(t.id);
+                            }}
+                            className="w-full mt-4.5 py-2.5 bg-slate-900 group-hover:bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border border-transparent"
+                          >
+                            Manage Tender Workspace <ArrowRight size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ======================================= */}
+          {/* CASE B: ALL TENDERS LEDGER (HISTORICAL)  */}
+          {/* ======================================= */}
+          {activeSubTab === 'tender-list' && (
+            <div className="space-y-6" id="tender-subtab-list">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-4 border-b border-slate-100">
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">All Tenders Registry</span>
+                  <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none flex items-center gap-2 mt-1">
+                    <FileText className="text-slate-650" size={22} /> Comprehensive Tender Ledger & Archive
+                  </h1>
+                  <p className="text-slate-500 text-xs">A unified list of all historical pre-contract items, including drafted, ongoing estimates, submitted envelopes, won contracts, and lost proposals.</p>
+                </div>
+                
+                <button 
+                  id="btn-create-tender"
+                  onClick={() => {
+                    setNewTender({
+                      tenderNo: `TND-2026-COL-${Math.floor(100 + Math.random() * 900)}`,
+                      name: '',
+                      client: '',
+                      consultant: '',
+                      location: '',
+                      tenderType: 'Building',
+                      status: 'Draft',
+                      submissionDate: '2026-07-31',
+                      estimatedValue: 0,
+                      assignedEstimator: 'Suren Jayasinghe (Lead QS)',
+                      currency: 'LKR',
+                      description: '',
+                      submissionMethod: 'Electronic Portal',
+                      notes: '',
+                      marginPercent: 12,
+                      overheadPercent: 6,
+                    });
+                    setIsCreateModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-slate-800 font-bold hover:bg-slate-900 text-white text-xs rounded-xl flex items-center gap-1.5 shadow transition-all cursor-pointer"
+                >
+                  <Plus size={15} /> Initiate New Tender
+                </button>
+              </div>
+
+              {/* Overarching Pre-Contract Metrics Row */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" id="all-tender-stats">
+                <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Secured Contracts</p>
+                  <h3 className="text-xl font-bold text-emerald-600 mt-1">
+                    {tenders.filter(t => t.status === 'Awarded').length} Awarded Wins
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Bids marked as Won & Handed Over</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Unsuccessful Proposals</p>
+                  <h3 className="text-xl font-bold text-rose-600 mt-1">
+                    {tenders.filter(t => t.status === 'Lost').length} Lost Bids
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Closed / Archived historical entries</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Active Pipeline</p>
+                  <h3 className="text-xl font-bold text-indigo-700 mt-1">
+                    {tenders.filter(t => t.status !== 'Awarded' && t.status !== 'Lost').length} In Progress
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Being calculated / reviewed</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Consolidated Value Pool</p>
+                  <h3 className="text-xl font-bold text-slate-800 mt-1">{formatCurrency(tenders.reduce((sum, t) => sum + t.estimatedValue, 0))} LKR</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Total life-cycle tender value pool</p>
+                </div>
+              </div>
+
+              {/* Directory Filter Base */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                  <span className="font-extrabold text-slate-700 text-xs uppercase tracking-wide">
+                    Master Bidding Opportunities Registry
+                  </span>
+                  
+                  <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                    <div className="relative">
+                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        type="text" 
+                        placeholder="Search tender name/number..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none w-52"
+                      />
+                    </div>
+                    
+                    <select 
+                      value={statusFilter} 
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-xs outline-none font-semibold cursor-pointer"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Draft">Draft</option>
+                      <option value="Estimating">Estimating</option>
+                      <option value="Reviewing">Reviewing</option>
+                      <option value="Submitted">Submitted</option>
+                      <option value="Awarded">Awarded (Won)</option>
+                      <option value="Lost">Lost</option>
+                    </select>
+
+                    <select 
+                      value={typeFilter} 
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-xs outline-none font-semibold cursor-pointer"
+                    >
+                      <option value="All">All Sectors</option>
+                      <option value="Building">Building Only</option>
+                      <option value="Infrastructure">Infrastructure Only</option>
+                      <option value="Road">Road Only</option>
+                      <option value="Civil">Civil Only</option>
+                      <option value="MEP">MEP Only</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Grid */}
+                {filteredTenders.length === 0 ? (
+                  <div className="text-center py-16 bg-white border border-slate-150 rounded-xl">
+                    <Briefcase className="mx-auto text-slate-300 mb-2 font-light" size={32} />
+                    <p className="font-bold text-slate-600 text-xs">No Tenders Found</p>
+                    <p className="text-[11px] text-slate-400">Try adjusting your filters or search terms.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {filteredTenders.map((t) => {
+                      const estCost = tenderBoqs[t.id] ? 
+                        tenderBoqs[t.id]
+                          .filter(i => i.type === 'ITEM')
+                          .reduce((sum, item) => sum + (item.amount || 0), 0)
+                        : t.estimatedValue;
+
+                      return (
+                        <div 
+                          key={t.id} 
+                          className="bg-white border border-slate-200 hover:border-slate-400 rounded-2xl p-5 flex flex-col justify-between shadow-xs hover:shadow-md transition-all group duration-200"
+                        >
+                          <div className="space-y-3.5">
+                            <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                              <span className="font-mono text-[11px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded leading-none border border-indigo-100">
+                                {t.tenderNo}
+                              </span>
+                              <span className={cn(
+                                "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border leading-tight",
+                                t.status === 'Awarded' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                                t.status === 'Submitted' ? "bg-indigo-50 text-indigo-700 border-indigo-100" :
+                                t.status === 'Estimating' ? "bg-amber-50 text-amber-750 border-amber-100" :
+                                t.status === 'Reviewing' ? "bg-purple-50 text-purple-700 border-purple-100" :
+                                t.status === 'Lost' ? "bg-red-50 text-red-700 border-red-100" :
+                                "bg-slate-100 text-slate-700 border-slate-200"
+                              )}>
+                                ● {t.status}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <h4 className="font-bold text-slate-900 text-sm leading-snug tracking-tight group-hover:text-slate-800 duration-150 truncate" title={t.name}>
+                                {t.name}
+                              </h4>
+                              <p className="text-xs text-slate-400 font-medium truncate">Client: {t.client}</p>
+                              <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                                <MapPin size={11} className="text-slate-400 shrink-0" /> <span className="truncate">{t.location}</span>
+                              </p>
+                            </div>
+
+                            {/* Miniature pipeline progress */}
+                            <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 space-y-1">
+                              <div className="flex justify-between text-[9px] font-bold text-slate-400">
+                                <span>Bidding Phase Progress</span>
+                                <span className={cn(
+                                  "font-bold uppercase",
+                                  t.status === 'Awarded' ? "text-emerald-650" : t.status === 'Lost' ? "text-red-500" : "text-indigo-600"
+                                )}>{t.status}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].map((step, idx) => {
+                                  const stepIdx = ['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].indexOf(t.status);
+                                  const isFilled = stepIdx >= idx && t.status !== 'Lost';
+                                  return (
+                                    <div 
+                                      key={step} 
+                                      className={cn(
+                                        "h-1 rounded-full flex-1",
+                                        isFilled ? (t.status === 'Awarded' ? "bg-emerald-500" : "bg-indigo-600") : "bg-slate-200"
+                                      )}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-100">
+                              <div>
+                                <span className="text-slate-400 text-[9px] font-bold block uppercase tracking-wider">Closing Date</span>
+                                <strong className="text-slate-700 font-mono">{t.submissionDate}</strong>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-slate-400 text-[9px] font-bold block uppercase tracking-wider">Estimations sum</span>
+                                <strong className="text-slate-800">{formatCurrency(estCost)} LKR</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setSelectedTenderId(t.id);
+                            }}
+                            className="w-full mt-4.5 py-2.5 bg-slate-900 group-hover:bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border border-transparent"
+                          >
+                            Manage Tender Workspace <ArrowRight size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ======================================= */}
+          {/* CASE C: TENDER REPORTS SUITE            */}
+          {/* ======================================= */}
+          {activeSubTab === 'tender-reports' && (
+            <div className="space-y-6" id="tender-subtab-reports">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 pb-4 border-b border-slate-100">
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-teal-650 bg-teal-50 px-2 py-0.5 rounded">Pre-Contract Valuation Office</span>
+                  <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none flex items-center gap-2 mt-1">
+                    <TrendingUp className="text-teal-600" size={22} /> Pre-Contract Analytics & Win/Loss Ratio
+                  </h1>
+                  <p className="text-slate-500 text-xs">Analyze bidding success indicators, conversion rates, and the financial structure of the total contract estimation registry.</p>
+                </div>
+                
+                <button 
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-teal-600 font-bold hover:bg-teal-700 text-white text-xs rounded-xl flex items-center gap-1.5 shadow transition-all cursor-pointer"
+                >
+                  <FileCheck size={14} /> Print Reports Abstract
+                </button>
+              </div>
+
+              {/* Statistical KPI Block */}
+              {(() => {
+                const totalTenders = tenders.length;
+                const wonTenders = tenders.filter(t => t.status === 'Awarded').length;
+                const lostTenders = tenders.filter(t => t.status === 'Lost').length;
+                const activePipelineCount = tenders.filter(t => t.status !== 'Awarded' && t.status !== 'Lost').length;
+
+                const winRatio = wonTenders + lostTenders > 0 ? (wonTenders / (wonTenders + lostTenders)) * 100 : 0;
+                
+                const activePipelineValue = tenders
+                  .filter(t => t.status !== 'Awarded' && t.status !== 'Lost')
+                  .reduce((sum, t) => sum + t.estimatedValue, 0);
+
+                const securedValue = tenders
+                  .filter(t => t.status === 'Awarded')
+                  .reduce((sum, t) => sum + t.estimatedValue, 0);
+
+                const submittedBidsValue = tenders
+                  .filter(t => t.status === 'Submitted')
+                  .reduce((sum, t) => sum + t.estimatedValue, 0);
+
+                return (
+                  <>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-sm">
+                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Lead Conversion Success Index</span>
+                        <div className="flex items-baseline gap-2 mt-1">
+                          <h3 className="text-2xl font-black text-slate-900 leading-none">{winRatio.toFixed(1)}%</h3>
+                          <span className="text-emerald-600 text-xs font-bold font-mono">Win Rate</span>
+                        </div>
+                        <p className="text-[10.5px] text-slate-400 mt-1">
+                          Calculated as <strong className="text-slate-600">{wonTenders} won</strong> vs <strong className="text-slate-600">{lostTenders} lost</strong>
+                        </p>
+                      </div>
+
+                      <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-sm">
+                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Secured Post-Contract Value</span>
+                        <div className="flex items-baseline gap-2 mt-1">
+                          <h3 className="text-2xl font-black text-emerald-650 leading-none">{formatCurrency(securedValue)} LKR</h3>
+                        </div>
+                        <p className="text-[10.5px] text-slate-400 mt-1">
+                          Carried over to execution workspaces
+                        </p>
+                      </div>
+
+                      <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-sm">
+                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Active Pipeline Exposure</span>
+                        <div className="flex items-baseline gap-2 mt-1">
+                          <h3 className="text-2xl font-black text-indigo-700 leading-none">{formatCurrency(activePipelineValue)} LKR</h3>
+                          <span className="text-indigo-600 text-[10px] font-bold font-mono">({activePipelineCount} active)</span>
+                        </div>
+                        <p className="text-[10.5px] text-slate-400 mt-1">
+                          Estimated values being priced
+                        </p>
+                      </div>
+
+                      <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-sm">
+                        <span className="text-[9px] text-[#4ea0a1] font-bold uppercase tracking-wider block">Submitted Bids Value</span>
+                        <div className="flex items-baseline gap-2 mt-1">
+                          <h3 className="text-2xl font-black text-slate-800 leading-none">{formatCurrency(submittedBidsValue)} LKR</h3>
+                        </div>
+                        <p className="text-[10.5px] text-slate-400 mt-1">
+                          Pending final evaluation decision
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                      
+                      {/* Bidding Funnel Card */}
+                      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                        <h3 className="text-xs uppercase font-extrabold text-slate-700 tracking-wider pb-2 border-b border-slate-100 flex items-center justify-between">
+                          <span>Bidding Funnel Performance</span>
+                          <span className="font-mono text-[10px] text-slate-400 capitalize">Life registry conversion</span>
+                        </h3>
+                        
+                        <div className="space-y-4 pt-1">
+                          {/* Draft Stage */}
+                          {(() => {
+                            const count = tenders.filter(t => t.status === 'Draft').length;
+                            const val = tenders.filter(t => t.status === 'Draft').reduce((s,t)=> s+t.estimatedValue,0);
+                            const percent = totalTenders > 0 ? (count / totalTenders) * 100 : 0;
+                            return (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="font-bold text-slate-600">Draft Formulation Phase</span>
+                                  <span className="font-mono text-slate-400 font-bold">{count} bids ({formatCurrency(val)} LKR)</span>
+                                </div>
+                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-slate-400" style={{ width: `${percent}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Estimating Stage */}
+                          {(() => {
+                            const count = tenders.filter(t => t.status === 'Estimating').length;
+                            const val = tenders.filter(t => t.status === 'Estimating').reduce((s,t)=> s+t.estimatedValue,0);
+                            const percent = totalTenders > 0 ? (count / totalTenders) * 100 : 0;
+                            return (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="font-bold text-amber-600">Active Estimating & BOQ Build</span>
+                                  <span className="font-mono text-slate-500 font-bold">{count} bids ({formatCurrency(val)} LKR)</span>
+                                </div>
+                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-amber-500" style={{ width: `${percent}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Submitted Stage */}
+                          {(() => {
+                            const count = tenders.filter(t => t.status === 'Submitted').length;
+                            const val = tenders.filter(t => t.status === 'Submitted').reduce((s,t)=> s+t.estimatedValue,0);
+                            const percent = totalTenders > 0 ? (count / totalTenders) * 100 : 0;
+                            return (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="font-bold text-indigo-650">Submitted Proposal Envelopes</span>
+                                  <span className="font-mono text-slate-500 font-bold">{count} bids ({formatCurrency(val)} LKR)</span>
+                                </div>
+                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-indigo-600" style={{ width: `${percent}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Awarded Stage */}
+                          {(() => {
+                            const count = tenders.filter(t => t.status === 'Awarded').length;
+                            const val = tenders.filter(t => t.status === 'Awarded').reduce((s,t)=> s+t.estimatedValue,0);
+                            const percent = totalTenders > 0 ? (count / totalTenders) * 100 : 0;
+                            return (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="font-bold text-emerald-600">Awarded Assets Handed Over</span>
+                                  <span className="font-mono text-emerald-700 font-bold">{count} bids ({formatCurrency(val)} LKR)</span>
+                                </div>
+                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-emerald-500" style={{ width: `${percent}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Sector Breakdown Card */}
+                      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                        <h3 className="text-xs uppercase font-extrabold text-slate-700 tracking-wider pb-2 border-b border-slate-100 flex items-center justify-between">
+                          <span>Sector Distribution & Focus</span>
+                          <span className="font-mono text-[10px] text-slate-450 uppercase">By Estimated Value</span>
+                        </h3>
+
+                        <div className="space-y-3.5 pt-1">
+                          {['Building', 'Infrastructure', 'Road', 'Civil', 'MEP'].map((sector) => {
+                            const sectorTenders = tenders.filter(t => t.tenderType === sector);
+                            const value = sectorTenders.reduce((sum, t) => sum + t.estimatedValue, 0);
+                            const totalVal = tenders.reduce((sum, t) => sum + t.estimatedValue, 0);
+                            const pct = totalVal > 0 ? (value / totalVal) * 105 : 0;
+
+                            return (
+                              <div key={sector} className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-teal-500" />
+                                    {sector}
+                                  </span>
+                                  <span className="font-mono text-slate-600">{sectorTenders.length} items • <strong className="text-slate-850">{formatCurrency(value)} LKR</strong></span>
+                                </div>
+                                <div className="h-1.5 w-full bg-slate-50 border border-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-teal-500 rounded-full" style={{ width: `${pct}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* All Bids Detailed Register Table */}
+                    <div className="bg-white border border-slate-205 rounded-2xl p-5 shadow-xs space-y-4">
+                      <h3 className="text-xs uppercase font-extrabold text-slate-700 tracking-wider">
+                        Master Bid Abstracts Sheet
+                      </h3>
+
+                      <div className="overflow-x-auto border border-slate-150 rounded-xl">
+                        <table className="w-full text-left border-collapse font-sans text-xs">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+                              <th className="p-3">Tender Code</th>
+                              <th className="p-3">Tender Name</th>
+                              <th className="p-3">Client</th>
+                              <th className="p-3">Sectors</th>
+                              <th className="p-3">Closing Date</th>
+                              <th className="p-3 text-right">Value (LKR)</th>
+                              <th className="p-3 text-center">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-150 text-slate-700">
+                            {tenders.map((t) => (
+                              <tr key={t.id} className="hover:bg-slate-50/55 transition-colors">
+                                <td className="p-3 font-mono text-indigo-700 font-bold">{t.tenderNo}</td>
+                                <td className="p-3 font-bold text-slate-900 max-w-[200px] truncate" title={t.name}>{t.name}</td>
+                                <td className="p-3 text-slate-500 max-w-[150px] truncate">{t.client}</td>
+                                <td className="p-3 font-bold uppercase text-[10px] text-slate-400">{t.tenderType}</td>
+                                <td className="p-3 font-mono">{t.submissionDate}</td>
+                                <td className="p-3 text-right font-bold text-slate-800 font-mono">{formatCurrency(t.estimatedValue)}</td>
+                                <td className="p-3 text-center">
+                                  <span className={cn(
+                                    "px-2.5 py-1 rounded text-[10px] font-black uppercase text-center border inline-block leading-none",
+                                    t.status === 'Awarded' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                                    t.status === 'Submitted' ? "bg-indigo-50 text-indigo-700 border-indigo-150" :
+                                    t.status === 'Estimating' ? "bg-amber-50 text-amber-700 border-amber-150" :
+                                    t.status === 'Lost' ? "bg-red-50 text-red-700 border-red-150" :
+                                    "bg-slate-50 text-slate-600 border-slate-200"
+                                  )}>
+                                    {t.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* 3. Direct Guided Bidding Workspace Flow once Tender is Selected */}
       {selectedTenderId && activeTender && (
-        <div className="space-y-6 animate-fade-in text-[13px]">
-                 {/* Simplified, Clear Tender Workspace Action Header & Interactive Status Controller */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4 animate-fade-in shadow-inner text-slate-700">
-            
-            {/* Top Row: Back to Ledger List & Selected Tender Title Display */}
+        <div className="space-y-6 animate-fade-in" id="tender-wizard">
+          
+          {/* Top Banner & Fast Back Actions */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4 shadow-sm text-slate-705">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-3 border-b border-slate-200">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <span className="font-semibold text-slate-400">Tender Management Workspace</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Interactive Bidding Pathway Controls</span>
+                  <span className={cn(
+                    "text-[10px] font-bold uppercase px-2 py-0.5 rounded border leading-none",
+                    activeTender.status === 'Awarded' ? "bg-emerald-50 text-emerald-700 border-emerald-250" :
+                    activeTender.status === 'Submitted' ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
+                    "bg-amber-50 text-amber-700 border-amber-250"
+                  )}>
+                    ● {activeTender.status}
+                  </span>
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="font-mono text-xs font-black text-primary-650 bg-primary-50 px-2 py-0.5 rounded border border-primary-100">
+                  <span className="font-mono text-xs font-bold text-indigo-705 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
                     {activeTender.tenderNo}
                   </span>
-                  <h2 className="font-extrabold text-slate-900 text-sm md:text-base tracking-tight leading-none">
+                  <h2 className="font-bold text-slate-900 text-base tracking-tight leading-none">
                     {activeTender.name}
                   </h2>
-                  <span className="text-xs text-slate-400 font-medium">• {activeTender.client}</span>
+                  <span className="text-xs text-slate-400 font-medium">• Client: {activeTender.client}</span>
                 </div>
               </div>
 
@@ -684,1548 +1152,801 @@ export const TenderManagementShell: React.FC<{
                 <button
                   onClick={() => {
                     setSelectedTenderId(null);
-                    setActiveSubTab('tender-opportunities');
                   }}
-                  className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-705 hover:text-slate-900 border border-slate-250 text-xs font-black rounded-lg flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                  className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold rounded-lg flex items-center gap-1 transition-all shadow-xs cursor-pointer"
                 >
-                  ← Back to Tender Ledger List
+                  ← Back to Tender Deck
                 </button>
               </div>
             </div>
 
-            {/* SIMPLIFIED DEDICATED STATUS CONTROLLER FOR DRAFT, ESTIMATE, SUBMIT, AWARD */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4.5 space-y-3.5 shadow-sm">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-widest font-black block">Interactive Bidding Pathway Controls</span>
-                  <p className="text-xs text-slate-500 font-medium leading-none">Change the tender status by clicking any of the steps below directly:</p>
+            {/* Visual step-by-step progress checklist to force steps sequence */}
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-1" id="wizard-steps-timeline">
+              {steps.map((st) => {
+                const isCurrent = activeStep === st.id;
+                const isPassed = activeStep > st.id;
+                
+                return (
+                  <button
+                    key={st.id}
+                    onClick={() => setActiveStep(st.id)}
+                    className={cn(
+                      "flex flex-col text-left p-3 rounded-lg border transition-all text-xs font-sans",
+                      isCurrent ? "bg-indigo-600 border-indigo-500 text-white shadow-sm" : 
+                      isPassed ? "bg-indigo-50 border-indigo-100 text-indigo-905 font-medium" : 
+                      "bg-white hover:bg-slate-50 border-slate-205 text-slate-400"
+                    )}
+                  >
+                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-90 block">Step 0{st.id}</span>
+                    <span className="font-bold block mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">{st.name}</span>
+                    <span className="text-[10px] font-medium block truncate opacity-75 mt-0.5">{st.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* STEP 1 DETAIL CARD: Scope Details Formulation */}
+          {activeStep === 1 && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6 animate-fade-in" id="wizard-step-1">
+              <div className="border-b border-slate-100 pb-3 flex justify-between items-center bg-slate-50/50 p-4 rounded-xl">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">Step 1: Tender Scope & Specifications</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Define pre-contract parameters and assign standard QS estimators.</p>
+                </div>
+                <Tag className="text-indigo-600" size={18} />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 block">Tender Identification Code</label>
+                  <input 
+                    type="text" 
+                    value={activeTender.tenderNo}
+                    onChange={(e) => updateTender(activeTender.id, { tenderNo: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 block">Tender Project Name</label>
+                  <input 
+                    type="text" 
+                    value={activeTender.name}
+                    onChange={(e) => updateTender(activeTender.id, { name: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-800"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 block">Client Organization</label>
+                  <input 
+                    type="text" 
+                    value={activeTender.client}
+                    onChange={(e) => updateTender(activeTender.id, { client: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 block">Consultant Engineers</label>
+                  <input 
+                    type="text" 
+                    value={activeTender.consultant}
+                    onChange={(e) => updateTender(activeTender.id, { consultant: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 block">Closing Bid Date</label>
+                  <input 
+                    type="date" 
+                    value={activeTender.submissionDate}
+                    onChange={(e) => updateTender(activeTender.id, { submissionDate: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 block">Geographic Location</label>
+                  <input 
+                    type="text" 
+                    value={activeTender.location}
+                    onChange={(e) => updateTender(activeTender.id, { location: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <label className="font-bold text-slate-700 block">Detailed Description & Field Parameters</label>
+                  <textarea 
+                    rows={3}
+                    value={activeTender.description}
+                    onChange={(e) => updateTender(activeTender.id, { description: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none leading-snug"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                <span className="text-[11px] text-slate-400 font-medium">✏️ Scope values sync instantly with pre-contract localStorage records</span>
+                <button 
+                  onClick={() => {
+                    updateTender(activeTender.id, { status: 'Estimating' });
+                    setActiveStep(2);
+                  }}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow duration-150"
+                >
+                  Proceed to BOQ Estimates <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2 DETAIL CARD: BOQ Estimator Breakdown Table with links to rate analysis */}
+          {activeStep === 2 && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6 animate-fade-in" id="wizard-step-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-3 bg-slate-50/50 p-4 rounded-xl">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">Step 2: Tender Bill of Quantities (BOQ)</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Append item components, configure estimated quantities, or pair with detailed Rate Analysis.</p>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 font-bold">Workspace Status:</span>
-                  <span className={cn(
-                    "text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full border leading-tight shadow-xs",
-                    activeTender.status === 'Awarded' ? "bg-emerald-50 text-emerald-700 border-emerald-250 animate-pulse" :
-                    activeTender.status === 'Submitted' ? "bg-purple-50 text-purple-700 border-purple-200" :
-                    activeTender.status === 'Reviewing' ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
-                    activeTender.status === 'Estimating' ? "bg-amber-50 text-amber-700 border-amber-200" :
-                    activeTender.status === 'Lost' ? "bg-red-50 text-red-700 border-red-200" :
-                    "bg-slate-100 text-slate-655 border-slate-250"
-                  )}>
-                    ● {activeTender.status}
-                  </span>
+                <button 
+                  onClick={() => {
+                    setBoqItemType('ITEM');
+                    setNewBoqItem({ code: `B.${activeTenderBOQItems.length + 1}`, description: '', unit: 'm3', quantity: 1, rate: 0, rateAnalysisId: '', remarks: '', parentId: '' });
+                    setIsAddBoqItemOpen(true);
+                  }}
+                  className="px-4 py-2 bg-indigo-605 hover:bg-indigo-700 text-indigo-700 bg-indigo-50 border border-indigo-150 rounded-xl font-bold text-xs flex items-center gap-1"
+                >
+                  <PlusCircle size={14} /> Add BOQ Item
+                </button>
+              </div>
 
-                  {activeTender.status === 'Awarded' && (
-                    <button 
-                      onClick={handleConvertTender}
-                      className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-650 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-extrabold rounded-lg flex items-center gap-1.5 shadow border border-emerald-500 transition-transform hover:scale-103 cursor-pointer animate-pulse"
-                    >
-                      <Sparkles size={12} className="text-amber-305" /> Convert to Live Project! 🚀
-                    </button>
-                  )}
+              {/* BOQ Grid Table */}
+              <div className="border border-slate-150 rounded-xl overflow-hidden bg-white shadow-xs">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
+                      <th className="pl-6 py-3 w-28 font-mono">Code</th>
+                      <th className="px-4 py-3">Description of Work Scopes</th>
+                      <th className="px-4 py-3 w-16">Unit</th>
+                      <th className="px-4 py-3 w-24 text-right">Quantity</th>
+                      <th className="px-4 py-3 w-28 text-right">Unit Rate (LKR)</th>
+                      <th className="px-4 py-3 w-28 text-right">Base Sum</th>
+                      <th className="pr-6 py-3 w-20 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {activeTenderBOQItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-16 text-center text-slate-400 font-medium">
+                          No items added to this tender yet. Provide structural categories or items.
+                        </td>
+                      </tr>
+                    ) : (
+                      activeTenderBOQItems.map(item => {
+                        const isSect = item.type === 'SECTION';
+                        const isEd = editingItemId === item.id;
+
+                        return (
+                          <tr 
+                            key={item.id} 
+                            className={cn(
+                              "hover:bg-slate-50/30 font-medium",
+                              isSect ? "bg-slate-50 text-slate-900 font-bold" : "text-slate-600"
+                            )}
+                          >
+                            <td className="pl-6 py-2.5 font-mono text-indigo-700">{item.code}</td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-slate-850">{item.description}</span>
+                                {item.rateAnalysisId && (
+                                  <span className="text-[10px] text-indigo-600 font-semibold mt-0.5">
+                                    ✓ Linked via rate analysis reference
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5 font-mono">{isSect ? '-' : item.unit}</td>
+                            
+                            <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-800">
+                              {isSect ? '-' : (
+                                isEd ? (
+                                  <input 
+                                    type="number" 
+                                    value={editItemQty}
+                                    onChange={(e) => setEditItemQty(Number(e.target.value))}
+                                    className="w-16 px-1.5 py-0.5 bg-white border border-slate-300 rounded text-right scale-95"
+                                  />
+                                ) : item.quantity
+                              )}
+                            </td>
+
+                            <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-800">
+                              {isSect ? '-' : (
+                                isEd ? (
+                                  <input 
+                                    type="number" 
+                                    value={editItemRate}
+                                    onChange={(e) => setEditItemRate(Number(e.target.value))}
+                                    className="w-20 px-1.5 py-0.5 bg-white border border-slate-300 rounded text-right scale-95"
+                                  />
+                                ) : formatCurrency(item.rate || 0)
+                              )}
+                            </td>
+
+                            <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-900">
+                              {isSect ? '-' : formatCurrency(item.amount || 0)}
+                            </td>
+
+                            <td className="pr-6 py-2.5 text-center">
+                              {isSect ? (
+                                <button 
+                                  onClick={() => handleDeleteBoqItem(item.id)}
+                                  className="text-slate-400 hover:text-red-650 p-1"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              ) : (
+                                <div className="flex justify-center gap-1.5">
+                                  {isEd ? (
+                                    <>
+                                      <button 
+                                        onClick={() => handleSaveInlineEdit(item)}
+                                        className="p-1 px-1.5 bg-indigo-50 border border-indigo-150 rounded text-[9.5px] text-indigo-700 font-black cursor-pointer"
+                                      >
+                                        Save
+                                      </button>
+                                      <button 
+                                        onClick={() => setEditingItemId(null)}
+                                        className="p-1 px-1.5 bg-slate-50 border border-slate-200 rounded text-[9.5px] text-slate-500 font-black cursor-pointer"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button 
+                                        onClick={() => {
+                                          setEditingItemId(item.id);
+                                          setEditItemQty(item.quantity || 0);
+                                          setEditItemRate(item.rate || 0);
+                                        }}
+                                        className="text-slate-400 hover:text-indigo-600 p-1"
+                                      >
+                                        <Edit size={13} />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDeleteBoqItem(item.id)}
+                                        className="text-slate-400 hover:text-red-650 p-1"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Base Estimations Summary Panel */}
+              <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="text-xs text-slate-500">
+                  <p className="font-bold text-slate-700 leading-none">Summed Base Cost Estimate</p>
+                  <p className="text-[11px] mt-1">Sum of direct material construction rates before company target profit margins or overhead allocations.</p>
+                </div>
+                <div className="text-right font-mono">
+                  <p className="text-[10px] text-slate-400 uppercase font-bold leading-none">Direct Base Valuation</p>
+                  <h4 className="text-lg font-bold text-slate-900 mt-1">{formatCurrency(pricingSummary.baseCost)} LKR</h4>
                 </div>
               </div>
 
-              {/* Steps Row representing Draft, Estimating, Reviewing, Submitted, Awarded clickable pipeline statuses */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {[
-                  { status: 'Draft', label: '1. Draft Proposal', desc: 'Configure core scope' },
-                  { status: 'Estimating', label: '2. Estimating Cost', desc: 'Build BOQ & quote rates' },
-                  { status: 'Reviewing', label: '3. QA/QC Reviewing', desc: 'Inspect bid margins' },
-                  { status: 'Submitted', label: '4. Bid Submitted', desc: 'Officially post to client' },
-                  { status: 'Awarded', label: '5. Contract Awarded', desc: 'Commission live workspace' }
-                ].map((step, sIdx) => {
-                  const isSelected = activeTender.status === step.status;
-                  const isCompleted = ['Draft', 'Estimating', 'Reviewing', 'Submitted', 'Awarded'].indexOf(activeTender.status) >= sIdx;
-                  const activeColorStyle = 
-                    step.status === 'Awarded' ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-500 text-white font-black" :
-                    "bg-primary-600 hover:bg-primary-700 border-primary-550 text-white font-black";
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setActiveStep(1)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5"
+                >
+                  <ChevronLeft size={14} /> Back to Details
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    updateTender(activeTender.id, { status: 'Estimating' });
+                    setActiveStep(3);
+                  }}
+                  className="px-5 py-2 bg-indigo-605 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow"
+                >
+                  Proceed to Quotes <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
 
-                  return (
-                    <button
-                      key={step.status}
-                      type="button"
-                      onClick={() => {
-                        updateTender(activeTender.id, { status: step.status as any });
-                      }}
-                      className={cn(
-                        "flex flex-col text-left p-3 rounded-xl border transition-all hover:translate-y-[-1px] cursor-pointer shadow-xs",
-                        isSelected ? (
-                          activeColorStyle
-                        ) : isCompleted ? (
-                          "bg-primary-50 hover:bg-primary-100 border-primary-150 text-primary-900 font-bold"
-                        ) : (
-                          "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-500"
-                        )
-                      )}
-                      title={`Instantly set status to ${step.status}`}
-                    >
-                      <span className="text-[9px] uppercase font-black tracking-wider block">
-                        {isSelected ? '✓ ACTIVE NOW' : `STAGE 0${sIdx + 1}`}
-                      </span>
-                      <span className="text-xs font-black tracking-tight block mt-0.5 whitespace-nowrap">
-                        {step.label}
-                      </span>
-                      <span className={cn(
-                        "text-[10px] font-medium block leading-tight mt-1 truncate",
-                        isSelected ? "text-white/80" : "text-slate-400"
-                      )}>
-                        {step.desc}
-                      </span>
-                    </button>
-                  );
-                })}
+          {/* STEP 3 DETAIL CARD: Trade Quotes & Suppliers Registry */}
+          {activeStep === 3 && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6 animate-fade-in" id="wizard-step-3">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-3 bg-slate-50/50 p-4 rounded-xl">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">Step 3: Materials & Subcontractor Proposal Quotes</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Compare supplier rates or specialist bids with your internal direct estimates.</p>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => { setQuoteType('supplier'); setIsQuoteModalOpen(true); }}
+                    className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-704 border border-indigo-150 text-xs font-bold rounded-xl"
+                  >
+                    + Supplier Quote
+                  </button>
+                  <button 
+                    onClick={() => { setQuoteType('subcontractor'); setIsQuoteModalOpen(true); }}
+                    className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-705 border border-slate-200 text-xs font-bold rounded-xl"
+                  >
+                    + Subcontractor Quote
+                  </button>
+                </div>
               </div>
 
-              {/* Additional Helper controls for Lost/Reset */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
-                <span className="font-semibold text-slate-400 flex items-center gap-1">
-                  💡 <strong>User Action:</strong> Adjusting bidding status dynamically updates reports and live tracking parameters.
-                </span>
-                <div className="flex items-center gap-2 self-end sm:self-auto">
-                  {activeTender.status !== 'Awarded' && activeTender.status !== 'Lost' && (
+              {/* Horizontal layout side-by-side grids */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                
+                {/* Supplier proposal registry column */}
+                <div className="space-y-3.5">
+                  <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1 leading-none uppercase tracking-wide">
+                    <span>1. Bulk Materials Supplier Quotes</span>
+                  </h4>
+                  
+                  <div className="border border-slate-150 rounded-xl overflow-hidden bg-white max-h-[300px] overflow-y-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-slate-55 border-b border-slate-150 text-slate-400 font-bold text-[9px] uppercase tracking-wider">
+                          <th className="pl-4 py-2">Supplier</th>
+                          <th className="px-3 py-2">Category</th>
+                          <th className="px-3 py-2 text-right">Quoted price</th>
+                          <th className="pr-4 py-2 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        {activeTenderSupplierQuotes.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="py-12 text-center text-slate-400 font-medium">No material quotes registered.</td>
+                          </tr>
+                        ) : (
+                          activeTenderSupplierQuotes.map(q => (
+                            <tr key={q.id} className="hover:bg-slate-50/50">
+                              <td className="pl-4 py-2.5 font-bold text-slate-800">{q.supplier}</td>
+                              <td className="px-3 py-2.5 text-slate-450">{q.materialCategory}</td>
+                              <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">{formatCurrency(q.amount)} {q.currency}</td>
+                              <td className="pr-4 py-2.5 text-center">
+                                <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[9.5px] font-black border border-emerald-100">
+                                  {q.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Subcontractor proposal registry column */}
+                <div className="space-y-3.5">
+                  <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1 leading-none uppercase tracking-wide">
+                    <span>2. Specialist Trade Subcontractor bids</span>
+                  </h4>
+                  
+                  <div className="border border-slate-150 rounded-xl overflow-hidden bg-white max-h-[300px] overflow-y-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-slate-55 border-b border-slate-150 text-slate-400 font-bold text-[9px] uppercase tracking-wider">
+                          <th className="pl-4 py-2">Subcontractor</th>
+                          <th className="px-3 py-2">Category Specialty</th>
+                          <th className="px-3 py-2 text-right">Quoted bid</th>
+                          <th className="pr-4 py-2 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        {activeTenderSubconQuotes.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="py-12 text-center text-slate-400 font-medium">No subcontractor bids registered.</td>
+                          </tr>
+                        ) : (
+                          activeTenderSubconQuotes.map(sc => (
+                            <tr key={sc.id} className="hover:bg-slate-50/50">
+                              <td className="pl-4 py-2.5 font-bold text-slate-800">{sc.subcontractor}</td>
+                              <td className="px-3 py-2.5 text-slate-455">{sc.workCategory}</td>
+                              <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">{formatCurrency(sc.quotedValue)} {sc.currency}</td>
+                              <td className="pr-4 py-2.5 text-center">
+                                <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[9.5px] font-black border border-indigo-100">
+                                  {sc.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setActiveStep(2)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5"
+                >
+                  <ChevronLeft size={14} /> Back to BOQ
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    updateTender(activeTender.id, { status: 'Reviewing' });
+                    setActiveStep(4);
+                  }}
+                  className="px-5 py-2 bg-indigo-605 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow"
+                >
+                  Configure Markup Coefficients <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4 DETAIL CARD: Markups, Overheads, and Sliders Coefficients */}
+          {activeStep === 4 && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6 animate-fade-in" id="wizard-step-4">
+              <div className="border-b border-slate-100 pb-3 bg-slate-50/50 p-4 rounded-xl">
+                <h3 className="font-bold text-slate-900 text-sm">Step 4: Overheads & Gross Markup Coefficients</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Use sliders to configure custom overhead multipliers and target margins to construct final bid pricing.</p>
+              </div>
+
+              {/* Pricing breakdown summary card block */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-inner">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block leading-none">Base Materials Sum</span>
+                  <p className="text-sm font-bold text-slate-805 font-mono mt-2">{formatCurrency(pricingSummary.baseCost)} LKR</p>
+                  <p className="text-[10.5px] text-slate-400 mt-0.5">Sourced from direct BOQ items</p>
+                </div>
+                <div className="bg-white border border-indigo-150 rounded-xl p-4 shadow-xs">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block leading-none">Site Overheads ({activeTender.overheadPercent}%)</span>
+                  <p className="text-sm font-bold text-indigo-700 font-mono mt-2">+{formatCurrency(pricingSummary.overheads)} LKR</p>
+                  <p className="text-[10.5px] text-slate-400 mt-0.5">Insurance, administration, bonds</p>
+                </div>
+                <div className="bg-white border border-emerald-150 rounded-xl p-4 shadow-xs">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block leading-none">Profit Margin target ({activeTender.marginPercent}%)</span>
+                  <p className="text-sm font-bold text-emerald-600 font-mono mt-2">+{formatCurrency(pricingSummary.profit)} LKR</p>
+                  <p className="text-[10.5px] text-slate-400 mt-0.5">Net contractor bidding margin</p>
+                </div>
+                <div className="bg-slate-900 text-white rounded-xl p-4">
+                  <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider block leading-none">Computed Gross Bid Price</span>
+                  <p className="text-base font-black text-white font-mono mt-2">{formatCurrency(pricingSummary.finalBid)} LKR</p>
+                  <p className="text-[10.5px] text-indigo-200 mt-0.5">Proposed gross contract sum</p>
+                </div>
+              </div>
+
+              {/* Multiplier Adjustment sliders */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
+                  <div className="flex justify-between text-xs font-bold text-slate-700">
+                    <label className="flex items-center gap-1"><Sliders size={13} className="text-indigo-650" /> Target Margin Coefficient</label>
+                    <span className="text-indigo-650 font-mono font-bold text-sm bg-white border border-slate-200 px-2.5 py-0.5 rounded-lg">{activeTender.marginPercent}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="25" 
+                    value={activeTender.marginPercent}
+                    onChange={(e) => updateTender(activeTender.id, { marginPercent: Number(e.target.value) })}
+                    className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                  />
+                  <p className="text-[11px] text-slate-450 leading-snug">Estimator note: typical margins across government infrastructure works fluctuate between 8% to 15%.</p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
+                  <div className="flex justify-between text-xs font-bold text-slate-700">
+                    <label className="flex items-center gap-1"><Building size={13} className="text-emerald-605" /> Site Overheads coefficient</label>
+                    <span className="text-emerald-605 font-mono font-bold text-sm bg-white border border-slate-200 px-2.5 py-0.5 rounded-lg">{activeTender.overheadPercent}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="20" 
+                    value={activeTender.overheadPercent}
+                    onChange={(e) => updateTender(activeTender.id, { overheadPercent: Number(e.target.value) })}
+                    className="w-full accent-emerald-500 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                  />
+                  <p className="text-[11px] text-slate-455 leading-snug">Estimator note: covers bank bond security commissions, logistics mobilization, and local field security guards.</p>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setActiveStep(3)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5"
+                >
+                  <ChevronLeft size={14} /> Back to Quotes
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    updateTender(activeTender.id, { status: 'Reviewing' });
+                    setActiveStep(5);
+                  }}
+                  className="px-5 py-2 bg-indigo-605 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow"
+                >
+                  Proceed to Proposal Submission <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5 DETAIL CARD: Proposal Submission Envelopes Packing */}
+          {activeStep === 5 && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6 animate-fade-in" id="wizard-step-5">
+              <div className="border-b border-slate-100 pb-3 bg-slate-50/50 p-4 rounded-xl">
+                <h3 className="font-bold text-slate-900 text-sm">Step 5: Final Submission compilation</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Adjust discretionary board discounts and submit final bid proposals formally to client.</p>
+              </div>
+
+              {activeTenderSubmission ? (
+                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center gap-2 text-emerald-800">
+                    <CheckCircle className="text-emerald-500" size={20} />
+                    <strong className="text-sm">Proposal Bid Formally Transmitted to Client!</strong>
+                  </div>
+                  <p className="text-xs text-emerald-700 max-w-xl leading-relaxed">
+                    This pre-contract opportunity has been successfully locked and tagged as <span className="font-bold uppercase">Submitted</span>. 
+                    The bidding records have been transmitted, waiting for formal client bid opening results. Next step guides you to register results.
+                  </p>
+
+                  <div className="bg-white border border-emerald-150 rounded-xl p-4 space-y-3 font-mono text-xs max-w-md">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Submission Code Ref:</span>
+                      <strong className="text-slate-700">{activeTenderSubmission.submissionNo}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Gross Estimate Code:</span>
+                      <strong className="text-slate-700">{formatCurrency(activeTenderSubmission.submittedAmount)} LKR</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-405">Board Discount:</span>
+                      <strong className="text-slate-700">{activeTenderSubmission.discountPercent}%</strong>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-100 pt-2 text-slate-900 font-bold">
+                      <span>Submitted Bid Offer:</span>
+                      <span>{formatCurrency(activeTenderSubmission.finalBidAmount)} LKR</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                  
+                  {/* Applied Board Discount coefficients inputs */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4 xl:col-span-1">
+                    <h4 className="font-bold text-slate-800 text-xs uppercase leading-none">Compile Bid Pricing</h4>
+                    <p className="text-[11px] text-slate-400">Apply any final administrative or discretionary board discounts on top of built markup rates.</p>
+
+                    <div className="space-y-4 pt-2 text-xs">
+                      <div className="space-y-1">
+                        <label className="font-semibold text-slate-650 block">Target Built Bid Price</label>
+                        <input 
+                          type="text" 
+                          disabled 
+                          value={`${formatCurrency(pricingSummary.finalBid)} LKR`}
+                          className="w-full px-3 py-2 bg-slate-200 text-slate-600 border border-slate-300 rounded-xl font-mono font-bold text-center"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[11px] font-bold text-slate-750">
+                          <label>Board Discount (%)</label>
+                          <span className="font-mono text-indigo-700 font-bold">{discountPct}%</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max="10" 
+                          step="0.5"
+                          value={discountPct}
+                          onChange={(e) => setDiscountPct(Number(e.target.value))}
+                          className="w-full accent-indigo-600 cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="space-y-1 bg-slate-900 text-white p-3 rounded-xl">
+                        <span className="text-[10px] text-indigo-30s uppercase font-bold block text-center leading-none">Net Bid Offer to Submit</span>
+                        <p className="font-mono text-center font-black mt-2 text-base text-white">
+                          {formatCurrency(pricingSummary.finalBid * (1 - (discountPct / 100)))} LKR
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Submit Form inputs details */}
+                  <div className="bg-white border border-slate-250 rounded-xl p-5 space-y-4 xl:col-span-2">
+                    <h4 className="font-bold text-slate-800 text-xs uppercase leading-none">Submission Details</h4>
+                    <p className="text-[11px] text-slate-400">Submit bid packages formally to Road Development Authority or foreign ministries.</p>
+
+                    <form onSubmit={handleAddSubmissionSubmit} className="space-y-4 text-xs">
+                      <div className="space-y-1">
+                        <label className="font-bold text-slate-700 block text-left">Registration transmission notes</label>
+                        <textarea 
+                          rows={3}
+                          value={submissionNotes}
+                          onChange={(e) => setSubmissionNotes(e.target.value)}
+                          placeholder="e.g. Bidding pack compiled into single-stage and uploaded to WebPortal. Bid security guarantee bonded by Peoples Bank."
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none leading-snug"
+                        />
+                      </div>
+
+                      <button 
+                        type="submit"
+                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl w-full flex items-center justify-center gap-1.5 shadow"
+                      >
+                        Transmit Final Registered Bid Offer 🚀
+                      </button>
+                    </form>
+                  </div>
+
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setActiveStep(4)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5"
+                >
+                  <ChevronLeft size={14} /> Back to Coefficients
+                </button>
+                
+                <button 
+                  onClick={() => setActiveStep(6)}
+                  className="px-5 py-2 bg-indigo-605 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow"
+                >
+                  Result & Handover <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 6 DETAIL CARD: Outcome Commission & Conversion to live project */}
+          {activeStep === 6 && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6 animate-fade-in" id="wizard-step-6">
+              <div className="border-b border-slate-100 pb-3 bg-slate-50/50 p-4 rounded-xl">
+                <h3 className="font-bold text-slate-900 text-sm">Step 6: Outcome & Live Project Commissioning</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Acknowledge formal bidding result. Convert won tenders into active implementation contracts.</p>
+              </div>
+
+              {activeTender.status !== 'Awarded' && activeTender.status !== 'Lost' ? (
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center space-y-4 max-w-lg mx-auto">
+                  <Calculator className="mx-auto text-slate-400 animate-pulse" size={32} />
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-sm">Waiting for client contract award notice</h4>
+                    <p className="text-xs text-slate-455 max-w-sm mx-auto leading-relaxed mt-1">
+                      If the client registers our bid offer as selected, choose "Mark as Awarded" to carry pre-contract estimations into post-contract modules.
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-center gap-2.5 pt-2">
+                    <button 
+                      onClick={() => {
+                        updateTender(activeTender.id, { status: 'Awarded' });
+                      }}
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5"
+                    >
+                      <CheckCircle size={14} /> Mark as Awarded / Won ✓
+                    </button>
                     <button 
                       onClick={() => {
                         if (confirm(`Confirm status change to Unsuccessful Opportunity ("Lost")?`)) {
                           updateTender(activeTender.id, { status: 'Lost' });
                         }
                       }}
-                      className="px-3.5 py-1 bg-white hover:bg-red-50 text-red-655 border border-slate-205 rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+                      className="px-5 py-2.5 bg-white hover:bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5"
                     >
-                      Mark as Lost Opportunity ✗
+                      <XCircle size={14} /> Mark as Lost ✗
                     </button>
-                  )}
-                  {activeTender.status === 'Lost' && (
-                    <button 
-                      onClick={() => {
-                        updateTender(activeTender.id, { status: 'Estimating' });
-                      }}
-                      className="px-3.5 py-1 bg-white hover:bg-slate-50 text-primary-655 border border-slate-205 rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
-                    >
-                      Re-Open Tender (Set back to Estimating) ↺
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Sub-navigation Menu Controls */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-transparent">
-              {[
-                { id: 'tender-opportunities', label: 'Tender Overview Room', icon: Briefcase },
-                { id: 'tender-boq', label: 'Bill of Quantities (BOQ)', icon: FileText },
-                { id: 'tender-estimation', label: 'Cost Analysis & Margin', icon: Calculator },
-                { id: 'tender-supplier-quotes', label: 'Supplier Proposals', icon: Sliders },
-                { id: 'tender-subcontractor-quotes', label: 'Subcont. Bid-List', icon: User },
-                { id: 'tender-revisions', label: 'Revisions & Addendums', icon: Calendar },
-                { id: 'tender-bid-submission', label: 'Proposal Submission', icon: CheckCircle },
-                { id: 'tender-reports', label: 'QS Summary Reports', icon: TrendingUp },
-              ].map((tab) => {
-                const isSelected = activeSubTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveSubTab(tab.id)}
-                    type="button"
-                    className={cn(
-                      "flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg whitespace-nowrap transition-all cursor-pointer border",
-                      isSelected ? (
-                        "bg-primary-900 text-white border-primary-850 shadow-md font-black"
-                      ) : (
-                        "bg-white text-slate-550 hover:text-slate-850 hover:bg-slate-50 border-slate-200 font-bold"
-                      )
-                    )}
-                  >
-                    {React.createElement(tab.icon, { size: 13, className: isSelected ? "text-amber-305 stroke-[2.5]" : "text-slate-400" })}
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-          </div>
-
-          {/* Simple, Consistent Status Metric Cards Row For Active Workspace */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4.5 bg-white border border-slate-200 rounded-xl p-4.5 shadow-sm font-sans text-slate-700">
-            {activeSubTab === 'tender-opportunities' && (
-              <>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Client Partner</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTender.client}</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Closing Bid Date</span>
-                  <strong className="text-slate-800 font-mono text-[13px] block mt-0.5">{activeTender.submissionDate}</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Estimated Tender Value</span>
-                  <strong className="text-primary-700 font-extrabold text-[13px] block mt-0.5">{formatCurrency(activeTender.estimatedValue)} LKR</strong>
-                </div>
-              </>
-            )}
-
-            {activeSubTab === 'tender-boq' && (
-              <>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Total Line Items</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderBOQItems.length} lines scheduled</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Total Scheduled cost</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{formatCurrency(tenderTotals.baseCost)} LKR</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Priced Items with Formulas</span>
-                  <strong className="text-primary-700 font-extrabold text-[13px] block mt-0.5">{activeTenderBOQItems.filter(item => item.rateAnalysisId).length} units analyzed</strong>
-                </div>
-              </>
-            )}
-
-            {activeSubTab === 'tender-estimation' && (
-              <>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Direct Base Cost</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{formatCurrency(tenderTotals.baseCost)} LKR</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Overhead & Profit Markups</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">OH: {activeTender.overheadPercent}% | GM: {activeTender.marginPercent}%</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Proposed Bid Price</span>
-                  <strong className="text-primary-700 font-extrabold text-[13px] block mt-0.5">{formatCurrency(tenderTotals.finalBid)} LKR</strong>
-                </div>
-              </>
-            )}
-
-            {activeSubTab === 'tender-supplier-quotes' && (
-              <>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Requests Broadcasted</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderSupplierQuotes.length} Proposals Requested</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Active Approved Materials</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderSupplierQuotes.filter(q => q.status === 'Approved').length} Checked</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans font-mono">Supplier cost committed</span>
-                  <strong className="text-primary-705 font-extrabold text-[13px] block mt-0.5 font-mono">{formatCurrency(activeTenderSupplierQuotes.reduce((s, q) => s + q.totalAmount, 0))} LKR</strong>
-                </div>
-              </>
-            )}
-
-            {activeSubTab === 'tender-subcontractor-quotes' && (
-              <>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Work Packages</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderSubconQuotes.length} Portfolios</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Approved Subcontract Partners</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderSubconQuotes.filter(q => q.status === 'Approved').length} Approved</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Subcont value committed</span>
-                  <strong className="text-primary-705 font-extrabold text-[13px] block mt-0.5 font-sans">{formatCurrency(activeTenderSubconQuotes.filter(q => q.status === 'Approved').reduce((s, q) => s + q.totalAmount, 0))} LKR</strong>
-                </div>
-              </>
-            )}
-
-            {activeSubTab === 'tender-revisions' && (
-              <>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Registered Revisions</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTenderRevisions.length} Bulletins</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Original Base estimate</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{formatCurrency(activeTender.estimatedValue)} LKR</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-mono">Latest revised estimate</span>
-                  <strong className="text-primary-705 font-extrabold text-[13px] block mt-0.5">
-                    {formatCurrency(activeTenderRevisions.length > 0 ? (activeTenderRevisions[0].revisedEstimate || tenderTotals.finalBid) : tenderTotals.finalBid)} LKR
-                  </strong>
-                </div>
-              </>
-            )}
-
-            {activeSubTab === 'tender-bid-submission' && (
-              <>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Bidding Opportunity Status</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTender.status}</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Bid Amount Locked</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{formatCurrency(tenderTotals.finalBid)} LKR</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-mono font-sans">Submission Portal</span>
-                  <strong className="text-primary-705 font-extrabold text-[13px] block mt-0.5">Electronic RDA Portal</strong>
-                </div>
-              </>
-            )}
-
-            {activeSubTab === 'tender-reports' && (
-              <>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Estimated Base Value</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{formatCurrency(tenderTotals.baseCost)} LKR</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider">Bidding Gross Margin</span>
-                  <strong className="text-slate-800 font-extrabold text-[13px] block mt-0.5">{activeTender.marginPercent}% Markup Applied</strong>
-                </div>
-                <div className="space-y-1 border-l border-slate-100 pl-4.5">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block tracking-wider font-sans">Proposed Bid Outlay</span>
-                  <strong className="text-primary-705 font-extrabold text-[13px] block mt-0.5 font-sans">{formatCurrency(tenderTotals.finalBid)} LKR</strong>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Render Active Subtab Content with individual dropdown bypass */}
-          
-          {/* Individual Tender Workspace Dashboard Cockpit overrides general stats */}
-          {activeSubTab === 'tender-dashboard' && (
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6.5 space-y-6 animate-fade-in text-slate-655">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-                <div className="space-y-0.5">
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">WORKSPACE COCKPIT</h3>
-                  <p className="text-[11px] text-slate-400">Consolidated pre-contract status for {activeTender.name}.</p>
-                </div>
-                <span className="text-xs text-primary-600 bg-primary-50 px-2 rounded font-bold font-mono py-0.5">ESTIMATION ONGOING</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4.5">
-                  <span className="text-[10px] text-slate-405 font-bold uppercase block tracking-wider">BOQ Rate Schedule</span>
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-2xl font-black text-slate-800">{activeTenderBOQItems.length}</span>
-                    <span className="text-xs text-slate-400">item entries indexed</span>
-                  </div>
-                  <button onClick={() => setActiveSubTab('tender-boq')} className="text-xs text-primary-600 font-extrabold hover:underline block mt-3">Configure BOQ Entries →</button>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4.5">
-                  <span className="text-[10px] text-slate-405 font-bold uppercase block tracking-wider">Supplier/Vendor Quotes</span>
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-2xl font-black text-slate-800">{activeTenderSupplierQuotes.length}</span>
-                    <span className="text-xs text-slate-400">proposals evaluated</span>
-                  </div>
-                  <button onClick={() => setActiveSubTab('tender-supplier-quotes')} className="text-xs text-primary-600 font-extrabold hover:underline block mt-3 font-bold">Inspect Quotations →</button>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4.5">
-                  <span className="text-[10px] text-slate-405 font-bold uppercase block tracking-wider">Target Estimate Sum</span>
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-2xl font-black text-slate-800">{formatCurrency(tenderTotals.finalBid)}</span>
-                    <span className="text-[10px] text-slate-400 pl-0.5">LKR ({activeTender.marginPercent}% margin applied)</span>
-                  </div>
-                  <button onClick={() => setActiveSubTab('tender-estimation')} className="text-xs text-primary-600 font-extrabold hover:underline block mt-3 font-bold font-sans">Modify Markups & Overheads →</button>
-                </div>
-              </div>
-
-              <div className="p-4 bg-primary-100/10 border border-primary-200/50 rounded-xl flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <p className="text-xs font-black text-primary-950">Next Operation Guideline:</p>
-                  <p className="text-[11px] text-slate-500">Conduct detailed Cost Analysis breakout or finalize revision history before registering the official bid transmission.</p>
-                </div>
-                <button 
-                  onClick={() => setActiveSubTab('tender-bid-submission')}
-                  className="px-4 py-1.5 bg-primary-900 text-white rounded-lg text-xs hover:bg-primary-950 font-bold transition-transform cursor-pointer"
-                >
-                  Compile Proposal Submission
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Renders other sub-tabs when context ledger is active */}
-        </div>
-      )}
-
-      {/* Tender Dashboard (Main Option 1) */}
-      {activeSubTab === 'tender-dashboard' && !selectedTenderId && (
-        <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
-          
-          {/* Header */}
-          <div className="flex justify-between items-end">
-            <div className="space-y-1">
-              <span className="text-[11px] uppercase tracking-widest font-black text-slate-400">Pre-Contract Operations</span>
-              <h2 className="text-xl font-black text-zentrix-blue tracking-tight leading-none">Tender Command Deck</h2>
-              <p className="text-slate-400 text-xs">Contractor dashboard tracking tender invitations, bid estimates, and awards.</p>
-            </div>
-            
-            <button 
-              onClick={() => {
-                setNewTender({
-                  tenderNo: `TND-2026-COL-${Math.floor(100 + Math.random() * 900)}`,
-                  name: '',
-                  client: '',
-                  consultant: '',
-                  location: '',
-                  tenderType: 'Building',
-                  status: 'Draft',
-                  submissionDate: '2026-07-31',
-                  estimatedValue: 0,
-                  assignedEstimator: 'Suren Jayasinghe (Lead PM)',
-                  currency: 'LKR',
-                  description: '',
-                  submissionMethod: 'Electronic Portal',
-                  notes: '',
-                  marginPercent: 12,
-                  overheadPercent: 6,
-                });
-                setIsCreateModalOpen(true);
-              }}
-              className="px-4 py-2 bg-primary-600 font-bold hover:bg-primary-700 text-white text-xs rounded-lg flex items-center gap-1.5 shadow"
-            >
-              <Plus size={15} /> Create Tender Opportunity
-            </button>
-          </div>
-
-          {/* Widgets Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white border border-zentrix-border rounded-xl p-4.5 shadow-sm">
-              <div className="flex justify-between items-start">
-                <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Active Tenders</span>
-                <span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Briefcase size={14} /></span>
-              </div>
-              <h3 className="text-2xl font-black text-slate-900 mt-2">{tenders.filter(t => ['Estimating', 'Reviewing'].includes(t.status)).length} Opportunities</h3>
-              <p className="text-[10.5px] text-slate-400 mt-1">Estimators analyzing rate analyses</p>
-            </div>
-
-            <div className="bg-white border border-zentrix-border rounded-xl p-4.5 shadow-sm">
-              <div className="flex justify-between items-start">
-                <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Submitted Bids</span>
-                <span className="p-1.5 bg-purple-50 text-purple-600 rounded-lg"><TrendingUp size={14} /></span>
-              </div>
-              <h3 className="text-2xl font-black text-slate-900 mt-2">{tenders.filter(t => t.status === 'Submitted').length} Proposals</h3>
-              <p className="text-[10.5px] text-slate-400 mt-1">Pending client selection boards</p>
-            </div>
-
-            <div className="bg-white border border-zentrix-border rounded-xl p-4.5 shadow-sm">
-              <div className="flex justify-between items-start">
-                <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Tenders Awarded</span>
-                <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle size={14} /></span>
-              </div>
-              <h3 className="text-2xl font-black text-emerald-650 mt-2">{tenders.filter(t => t.status === 'Awarded').length} Awarded</h3>
-              <p className="text-[10.5px] text-emerald-600 font-semibold mt-1">Awaiting workspace conversion</p>
-            </div>
-
-            <div className="bg-white border border-zentrix-border rounded-xl p-4.5 shadow-sm">
-              <div className="flex justify-between items-start">
-                <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Consolidated Tender Value</span>
-                <span className="p-1.5 bg-amber-50 text-amber-600 rounded-lg"><DollarSign size={14} /></span>
-              </div>
-              <h3 className="text-2xl font-black text-slate-900 mt-2">{formatCurrency(tenders.reduce((sum, t) => sum + t.estimatedValue, 0) / 1000000)}M LKR</h3>
-              <p className="text-[10.5px] text-slate-400 mt-1">Global pool estimated baseline</p>
-            </div>
-          </div>
-
-          {/* Quick Stats: Deadlines and Active Pipeline Chart */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            
-            {/* Visual Pipeline with neat HTML styling */}
-            <div className="bg-white border border-zentrix-border rounded-xl p-5 shadow-sm space-y-4">
-              <h4 className="font-bold text-slate-800 leading-none">Tender Pipeline Distribution</h4>
-              <p className="text-[11px] text-slate-400">Breakdown of opportunities by pre-contract status index.</p>
-              
-              <div className="space-y-3.5 pt-2">
-                {[
-                  { status: 'Draft', color: 'bg-slate-300', count: tenders.filter(t => t.status === 'Draft').length },
-                  { status: 'Estimating', color: 'bg-amber-500', count: tenders.filter(t => t.status === 'Estimating').length },
-                  { status: 'Reviewing', color: 'bg-indigo-500', count: tenders.filter(t => t.status === 'Reviewing').length },
-                  { status: 'Submitted', color: 'bg-purple-500', count: tenders.filter(t => t.status === 'Submitted').length },
-                  { status: 'Awarded', color: 'bg-emerald-500', count: tenders.filter(t => t.status === 'Awarded').length },
-                ].map(item => {
-                  const pct = Math.max((item.count / tenders.length) * 100, 3);
-                  return (
-                    <div key={item.status} className="space-y-1">
-                      <div className="flex justify-between text-xs font-bold text-slate-600">
-                        <span>{item.status}</span>
-                        <span>{item.count} items ({Math.round(pct)}%)</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div className={cn("h-full rounded-full", item.color)} style={{ width: `${pct}%` }}></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Upcoming Deadlines Table */}
-            <div className="bg-white border border-zentrix-border rounded-xl p-5 shadow-sm col-span-2 space-y-3.5">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                <h4 className="font-bold text-slate-800 leading-none">Upcoming Tender Closing Dates</h4>
-                <span className="text-[10px] bg-red-50 text-red-600 font-extrabold px-2 py-0.5 rounded-full uppercase flex items-center gap-1">
-                  <Flame size={10} /> Critical Deadlines
-                </span>
-              </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-50">
-                      <th className="pb-2">Tender ID</th>
-                      <th className="pb-2">Tender Name</th>
-                      <th className="pb-2">Submission Date</th>
-                      <th className="pb-2 text-right">Estimated Value</th>
-                      <th className="pb-2 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-150">
-                    {tenders.map(t => (
-                      <tr key={t.id} className="hover:bg-slate-50/50">
-                        <td className="py-2.5 font-mono text-[11px] font-bold text-primary-600">{t.tenderNo}</td>
-                        <td className="py-2.5 font-bold text-slate-800">{t.name}</td>
-                        <td className="py-2.5 text-slate-500 text-xs">
-                          <span className="inline-flex items-center gap-1 font-mono">
-                            <Calendar size={12} className="text-slate-400" /> {t.submissionDate}
-                          </span>
-                        </td>
-                        <td className="py-2.5 text-right font-semibold text-slate-900">{formatCurrency(t.estimatedValue)} LKR</td>
-                        <td className="py-2.5 text-right">
-                          <button 
-                            onClick={() => {
-                              setSelectedTenderId(t.id);
-                              setActiveSubTab('tender-opportunities');
-                            }}
-                            className="p-1 px-2.5 bg-slate-50 border border-slate-200 rounded text-[11px] font-bold hover:bg-slate-100 text-slate-600 cursor-pointer"
-                          >
-                            Open →
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Pending Supplier and Subcontractor bids */}
-          <div className="bg-white border border-zentrix-border rounded-xl p-5 shadow-sm space-y-4">
-            <h4 className="font-bold text-slate-800 leading-none">Latest Registered Supplier & Subcontractor Quotes</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-inner">
-                <div className="p-3 bg-slate-50 border-b border-slate-200 font-bold text-slate-700 flex justify-between">
-                  <span>Supplier Proposals</span>
-                  <span className="text-[10px] px-2 py-0.5 bg-blue-150 text-blue-700 rounded-full">Materials pricing</span>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {supplierQuotations.slice(0, 3).map(sq => (
-                    <div key={sq.id} className="p-3 text-xs flex justify-between items-center hover:bg-slate-50/20">
-                      <div>
-                        <p className="font-bold text-slate-900">{sq.supplier}</p>
-                        <p className="text-[10.5px] text-slate-400">{sq.materialCategory}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-mono font-bold text-slate-800">{formatCurrency(sq.amount)} {sq.currency}</p>
-                        <span className="text-[10px] text-emerald-600 font-bold uppercase">{sq.status}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-inner">
-                <div className="p-3 bg-slate-50 border-b border-slate-200 font-bold text-slate-700 flex justify-between">
-                  <span>Subcontractor Proposals</span>
-                  <span className="text-[10px] px-2 py-0.5 bg-purple-150 text-purple-700 rounded-full">Works pricing</span>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {subcontractorQuotations.slice(0, 3).map(sc => (
-                    <div key={sc.id} className="p-3 text-xs flex justify-between items-center hover:bg-slate-50/20">
-                      <div>
-                        <p className="font-bold text-slate-900">{sc.subcontractor}</p>
-                        <p className="text-[10.5px] text-slate-400">{sc.workCategory}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-mono font-bold text-slate-800">{formatCurrency(sc.quotedValue)} {sc.currency}</p>
-                        <span className="text-[10px] text-indigo-650 font-bold uppercase">{sc.status}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* Tender Opportunities Tab VIEW */}
-      {activeSubTab === 'tender-opportunities' && selectedTenderId && (
-        <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
-          
-          <div className="flex justify-between items-end">
-            <div className="space-y-1">
-              <span className="text-[11px] uppercase tracking-widest font-black text-slate-400">Pre-Contract / Estimations</span>
-              <h2 className="text-xl font-black text-zentrix-blue tracking-tight leading-none">Tender Opportunities Ledger</h2>
-              <p className="text-slate-400 text-xs text-[12.5px]">Manage invitations, specifications worksheets, and individual detail workspaces.</p>
-            </div>
-            
-            <button 
-              onClick={() => setIsCreateModalOpen(true)}
-              className="px-4 py-2 bg-primary-600 font-bold hover:bg-primary-700 text-white text-xs rounded-lg flex items-center gap-1 shadow cursor-pointer"
-            >
-              <Plus size={15} /> Create Tender Opportunity
-            </button>
-          </div>
-
-          {/* Table list and Quick Detail split side pane */}
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-            
-            {/* Listing Column */}
-            <div className="xl:col-span-5 bg-white border border-zentrix-border rounded-xl shadow-sm overflow-hidden flex flex-col">
-              <div className="p-4 border-b border-slate-100 bg-slate-50/50 space-y-3">
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Search ledger..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <select 
-                    value={statusFilter} 
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="flex-1 p-1 px-2.5 bg-white border border-slate-200 rounded text-xs outline-none font-bold"
-                  >
-                    <option value="All">All Statuses</option>
-                    <option value="Draft">Draft</option>
-                    <option value="Estimating">Estimating</option>
-                    <option value="Reviewing">Reviewing</option>
-                    <option value="Submitted">Submitted</option>
-                    <option value="Awarded">Awarded</option>
-                    <option value="Lost">Lost</option>
-                  </select>
-                  <select 
-                    value={typeFilter} 
-                    onChange={(e) => setTypeFilter(e.target.value)}
-                    className="flex-1 p-1 px-2.5 bg-white border border-slate-200 rounded text-xs outline-none font-bold"
-                  >
-                    <option value="All">All Types</option>
-                    <option value="Building">Building</option>
-                    <option value="Infrastructure">Infrastructure</option>
-                    <option value="Road">Road</option>
-                    <option value="Civil">Civil</option>
-                    <option value="MEP">MEP</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="divide-y divide-slate-100 max-h-[550px] overflow-y-auto">
-                {filteredTenders.map(t => (
-                  <div 
-                    key={t.id} 
-                    onClick={() => setSelectedTenderId(t.id)}
-                    className={cn(
-                      "p-4 cursor-pointer hover:bg-slate-50 transition-colors flex flex-col gap-2 relative",
-                      activeTender?.id === t.id ? "bg-primary-50/45 border-l-4 border-primary-600" : ""
-                    )}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="font-mono font-bold text-primary-600 text-[11px] bg-slate-100 px-1.5 py-0.5 rounded">{t.tenderNo}</span>
-                      <span className={cn(
-                        "text-[10px] font-black uppercase px-2 py-0.5 rounded-full",
-                        t.status === 'Awarded' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
-                        t.status === 'Submitted' ? "bg-purple-50 text-purple-600 border border-purple-100" :
-                        t.status === 'Estimating' ? "bg-amber-50 text-amber-600 border border-amber-100" : 
-                        "bg-slate-100 text-slate-550 border border-slate-200"
-                      )}>
-                        {t.status}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h4 className="font-extrabold text-slate-800 text-xs truncate">{t.name}</h4>
-                      <p className="text-[10.5px] text-slate-400 mt-1">{t.client}</p>
-                    </div>
-
-                    <div className="flex justify-between text-[11px] text-slate-400 pt-1.5 border-t border-slate-100/40">
-                      <span>Closing: <strong className="text-slate-600 font-mono">{t.submissionDate}</strong></span>
-                      <span className="font-bold text-slate-800">{formatCurrency(t.estimatedValue)} {t.currency}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Detailed Workspace Column */}
-            <div className="xl:col-span-7 bg-white border border-zentrix-border rounded-xl shadow-sm p-6 space-y-6">
-              {activeTender ? (
-                <div className="space-y-6 animate-fade-in">
-                  
-                  {/* Title & Conversion Actions banner */}
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-150">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-primary-650 bg-slate-100 px-2 py-0.5 rounded font-black">{activeTender.tenderNo}</span>
-                        <span className="text-xs text-slate-400">• {activeTender.tenderType} Division</span>
-                      </div>
-                      <h3 className="text-base font-black text-zentrix-blue mt-1.5 leading-tight">{activeTender.name}</h3>
-                    </div>
-
-                    <div className="flex gap-2">
-                      {activeTender.status === 'Awarded' && (
-                        <button 
-                          onClick={handleConvertTender}
-                          className="px-4.5 py-2.5 bg-emerald-600 font-black hover:bg-emerald-700 text-white text-xs rounded-xl flex items-center gap-1.5 shadow"
-                        >
-                          <Sparkles size={14} className="text-amber-300 animate-pulse" /> Converted Workspace
-                        </button>
-                      )}
-                      
-                      {activeTender.status !== 'Awarded' && activeTender.status !== 'Lost' && (
-                        <button 
-                          onClick={() => {
-                            if (confirm('Mark this Tender Opportunity as formally Awarded?')) {
-                              updateTender(activeTender.id, { status: 'Awarded' });
-                            }
-                          }}
-                          className="px-3.5 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-xs rounded-lg font-bold"
-                        >
-                          Mark Awarded ✓
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Summary / Fields Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Client Organization</p>
-                      <p className="text-slate-800 font-bold block mt-0.5">{activeTender.client}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Consulting Engineers</p>
-                      <p className="text-slate-800 font-bold block mt-0.5">{activeTender.consultant}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Closing Bid Date</p>
-                      <p className="text-slate-800 font-bold block mt-0.5 font-mono">{activeTender.submissionDate}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Assigned Lead QS Estimator</p>
-                      <p className="text-slate-800 font-bold block mt-0.5">{activeTender.assignedEstimator}</p>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Project Location Scope</p>
-                      <p className="text-slate-800 font-bold block mt-0.5 flex items-center gap-1"><MapPin size={12} className="text-slate-400" /> {activeTender.location}</p>
-                    </div>
-                  </div>
-
-                  {/* Description Box */}
-                  <div className="space-y-1.5">
-                    <h4 className="font-bold text-slate-800 text-xs">Pre-Contract Tender Scope Description</h4>
-                    <p className="text-slate-500 text-xs leading-relaxed">{activeTender.description}</p>
-                  </div>
-
-                  {/* Workspace Menu Shortcuts */}
-                  <div className="bg-primary-50/30 border border-primary-100/50 rounded-xl p-4.5 space-y-3">
-                    <h4 className="font-bold text-primary-950 text-xs">Pre-Contract Estimation Submenus Shortcut</h4>
-                    <p className="text-[11px] text-slate-500">Jump directly to specialized bid-prep sub-modules linked to this tender:</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <button onClick={() => setActiveSubTab('tender-boq')} className="p-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-700 font-bold transition-all truncate">Tender BOQ</button>
-                      <button onClick={() => setActiveSubTab('tender-estimation')} className="p-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-700 font-bold transition-all truncate">Estimation</button>
-                      <button onClick={() => setActiveSubTab('tender-supplier-quotes')} className="p-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-700 font-bold transition-all truncate">Quotes</button>
-                      <button onClick={() => setActiveSubTab('tender-bid-submission')} className="p-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-700 font-bold transition-all truncate">Submission</button>
-                    </div>
-                  </div>
-
-                  {/* Attachment Document Management Area */}
-                  <div className="border border-slate-200 rounded-xl p-4 space-y-3 shadow-inner bg-slate-50/25">
-                    <h4 className="font-bold text-slate-800 text-xs leading-none">Tender Specifications & Drawings (DMS Simulator)</h4>
-                    <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
-                      <div className="flex items-center gap-2.5">
-                        <span className="p-2 bg-slate-100 text-slate-500 rounded"><FileText size={16} /></span>
-                        <div>
-                          <p className="font-bold text-xs text-slate-800">TND_Drawings_ElevatedPierLimits_V2.pdf</p>
-                          <p className="text-[10px] text-slate-400">18.5 MB • Version 2.0 • Ingested via RDA Portal</p>
-                        </div>
-                      </div>
-                      <span className="text-[11px] text-slate-400 font-bold">Standard PDF</span>
-                    </div>
-
-                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center hover:bg-white transition-all cursor-pointer">
-                      <Upload size={18} className="mx-auto text-slate-400 mb-1" />
-                      <p className="text-xs font-bold text-slate-700">Attach and upload addendums</p>
-                      <p className="text-[10px] text-slate-400">Supports PDF, XLSX up to 30MB</p>
-                    </div>
-                  </div>
-
-                </div>
-              ) : (
-                <div className="text-center py-24 text-slate-400">
-                  <Briefcase size={36} className="mx-auto mb-2 text-slate-350" />
-                  <p className="font-bold">No Tender Opportunity Selected</p>
-                  <p className="text-xs">Click on any tender opportunity in the left ledger to launch your workspace.</p>
-                </div>
-              )}
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* Tender BOQ Module (Option 3) */}
-      {activeSubTab === 'tender-boq' && selectedTenderId && (
-        <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
-          
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-            <div className="space-y-1">
-              <span className="text-[11px] uppercase tracking-widest font-black text-slate-400">Pre-Contract Estimations</span>
-              <h2 className="text-xl font-black text-zentrix-blue tracking-tight leading-none">Tender Bill of Quantities (BOQ)</h2>
-              <p className="text-slate-400 text-xs">Verify breakdown structures, adjust quantities, or link items to rate analysis formulas.</p>
-            </div>
-            
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setIsAddBoqItemOpen(true)}
-                className="px-4 py-2 bg-primary-600 font-bold hover:bg-primary-700 text-white text-xs rounded-lg flex items-center gap-1.5 shadow"
-              >
-                <Plus size={15} /> Add BOQ Item
-              </button>
-            </div>
-          </div>
-
-          {/* Core Tender info Banner */}
-          <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Active Tender Draft Scope</p>
-              <h4 className="font-bold text-slate-800 text-sm mt-0.5">{activeTender ? activeTender.name : 'Unknown scope'}</h4>
-              <p className="text-[11px] text-slate-400 mt-0.5">Reference No: {activeTender?.tenderNo}</p>
-            </div>
-
-            <div className="text-left sm:text-right font-mono">
-              <p className="text-[10px] text-slate-400 uppercase font-black">Summed Base Cost</p>
-              <h4 className="font-bold text-zentrix-blue text-lg">{formatCurrency(tenderTotals.baseCost)} {activeTender?.currency}</h4>
-            </div>
-          </div>
-
-          {/* Tender BOQ Compact Table */}
-          <div className="bg-white border border-zentrix-border rounded-xl shadow-sm overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 border-b border-zentrix-border text-slate-400 font-extrabold text-[10.5px] uppercase tracking-wider">
-                  <th className="pl-6 py-3 w-32">Item Code</th>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3 w-20">Unit</th>
-                  <th className="px-4 py-3 w-28 text-right">Draft Qty</th>
-                  <th className="px-4 py-3 w-32 text-right">Rate build-up</th>
-                  <th className="px-4 py-3 w-32 text-right">Summed Amount</th>
-                  <th className="pr-6 py-3 w-20 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {activeTenderBOQItems.length > 0 ? (
-                  activeTenderBOQItems.map(item => {
-                    const isSection = item.type === 'SECTION';
-                    const isEditing = editingItemId === item.id;
-                    
-                    return (
-                      <tr 
-                        key={item.id} 
-                        className={cn(
-                          "transition-colors hover:bg-slate-50/20",
-                          isSection ? "bg-slate-50/75 text-slate-800 font-black" : "text-slate-650"
-                        )}
-                      >
-                        <td className={cn("pl-6 py-3 font-mono", isSection ? "font-extrabold text-slate-900" : "font-semibold text-primary-650")}>
-                          {item.code}
-                        </td>
-                        <td className="px-4 py-3 max-w-sm sm:max-w-md">
-                          <div className="flex flex-col">
-                            <span className="font-medium whitespace-normal balance">{item.description}</span>
-                            {item.remarks && <span className="text-[10px] text-slate-400 mt-1">{item.remarks}</span>}
-                            {item.rateAnalysisId && (
-                              <span className="text-[10px] text-indigo-500 font-bold mt-1 inline-flex items-center gap-0.5">
-                                 Rate analysis linked ✓
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-slate-500">{isSection ? '-' : item.unit}</td>
-                        
-                        {/* Quantity Field */}
-                        <td className="px-4 py-3 text-right font-mono font-bold text-slate-800">
-                          {isSection ? '-' : (
-                            isEditing ? (
-                              <input 
-                                type="number" 
-                                value={editItemQty}
-                                onChange={(e) => setEditItemQty(Number(e.target.value))}
-                                className="w-20 px-2 py-1 bg-white border border-slate-350 rounded text-right scale-95"
-                              />
-                            ) : item.quantity
-                          )}
-                        </td>
-
-                        {/* Rate Field */}
-                        <td className="px-4 py-3 text-right font-mono font-bold text-slate-800">
-                          {isSection ? '-' : (
-                            isEditing ? (
-                              <input 
-                                type="number" 
-                                value={editItemRate}
-                                onChange={(e) => setEditItemRate(Number(e.target.value))}
-                                className="w-24 px-2 py-1 bg-white border border-slate-350 rounded text-right scale-95"
-                              />
-                            ) : formatCurrency(item.rate || 0)
-                          )}
-                        </td>
-
-                        {/* Amount Summed */}
-                        <td className="px-4 py-3 text-right font-mono font-extrabold text-slate-900">
-                          {isSection ? '-' : formatCurrency(item.amount || 0)}
-                        </td>
-
-                        {/* Actions column */}
-                        <td className="pr-6 py-3 text-center">
-                          {isSection ? (
-                            <button 
-                              onClick={() => handleDeleteBoqItem(item.id)}
-                              className="p-1 hover:text-red-650 text-slate-400"
-                              title="Delete Section Division"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          ) : (
-                            <div className="flex justify-center gap-1.5">
-                              {isEditing ? (
-                                <>
-                                  <button 
-                                    onClick={() => handleSaveInlineEdit(item)}
-                                    className="p-1 bg-emerald-50 text-emerald-605 border border-emerald-200 rounded text-[10px] font-bold px-1.5"
-                                  >
-                                    Save
-                                  </button>
-                                  <button 
-                                    onClick={() => setEditingItemId(null)}
-                                    className="p-1 bg-slate-50 text-slate-500 border border-slate-200 rounded text-[10px] font-bold px-1.5"
-                                  >
-                                    X
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button 
-                                    onClick={() => {
-                                      setEditingItemId(item.id);
-                                      setEditItemQty(item.quantity || 0);
-                                      setEditItemRate(item.rate || 0);
-                                    }}
-                                    className="p-1 text-slate-400 hover:text-slate-750"
-                                    title="Edit inline"
-                                  >
-                                    <Edit size={13} />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteBoqItem(item.id)}
-                                    className="p-1 text-slate-400 hover:text-red-650"
-                                    title="Delete Item"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </td>
-
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="py-20 text-center text-slate-450 border-t border-slate-100">
-                      <Briefcase size={32} className="mx-auto mb-2 text-slate-300" />
-                      <p className="font-bold">Tender BOQ Workspace is empty</p>
-                      <p className="text-[11px] text-slate-400 mt-1">Start manually adding division sections or specific items.</p>
-                      <button 
-                        onClick={() => setIsAddBoqItemOpen(true)}
-                        className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold"
-                      >
-                        + Create First Entry
-                      </button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-      )}
-
-      {/* Estimation Module (Option 4) */}
-      {activeSubTab === 'tender-estimation' && selectedTenderId && (
-        <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
-          
-          <div className="space-y-1">
-            <span className="text-[11px] uppercase tracking-widest font-black text-slate-400">Pre-Contract Estimations</span>
-            <h2 className="text-xl font-black text-zentrix-blue tracking-tight leading-none">Tender Commercial Estimation Build-up</h2>
-            <p className="text-slate-400 text-xs text-[12.5px]">Control markup profit allowances, apply overhead coefficients, and evaluate subcontractor competitive quotes.</p>
-          </div>
-
-          {/* Summaries Cards Block */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            
-            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-sm text-left">
-              <p className="text-[10px] text-slate-400 uppercase font-black">Summed Base Cost</p>
-              <h3 className="text-xl font-black text-slate-900 mt-1.5">{formatCurrency(tenderTotals.baseCost)} LKR</h3>
-              <p className="text-[10px] text-slate-400 mt-1">Sourced from active BOQ schedule</p>
-            </div>
-
-            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-sm text-left">
-              <p className="text-[10px] text-slate-400 uppercase font-black">Company Site Overheads ({activeTender?.overheadPercent}%)</p>
-              <h3 className="text-xl font-black text-indigo-650 mt-1.5">+{formatCurrency(tenderTotals.overheads)} LKR</h3>
-              <p className="text-[10px] text-slate-400 mt-1">For insurance, security, logistics</p>
-            </div>
-
-            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-sm text-left">
-              <p className="text-[10px] text-slate-400 uppercase font-black">Company Target Margin ({activeTender?.marginPercent}%)</p>
-              <h3 className="text-xl font-black text-emerald-650 mt-1.5">+{formatCurrency(tenderTotals.profit)} LKR</h3>
-              <p className="text-[10px] text-slate-400 mt-1">Net gross profit target</p>
-            </div>
-
-            <div className="bg-white border border-zentrix-border rounded-xl p-4 shadow-sm text-left col-span-2 bg-gradient-to-br from-primary-900 to-primary-950 text-white border-primary-800">
-              <p className="text-[10px] text-primary-300 uppercase font-black tracking-wider">Final Bid Pricing Value</p>
-              <h3 className="text-2xl font-black mt-1.5 text-white">{formatCurrency(tenderTotals.finalBid)} LKR</h3>
-              <p className="text-[10px] text-primary-200 mt-1 font-semibold">Tender proposal submission total</p>
-            </div>
-
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
-            
-            {/* Rates Adjustment Form Panel */}
-            <div className="bg-white border border-zentrix-border rounded-xl p-5 shadow-sm space-y-4">
-              <h4 className="font-extrabold text-slate-800 leading-none">Estimation Coefficients Editor</h4>
-              <p className="text-slate-400 text-xs">Instantly updates the proposal bid value with direct calculations.</p>
-              
-              <div className="space-y-4 pt-2">
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold text-slate-700">
-                    <label>Target Net Profit Margin</label>
-                    <span className="text-primary-600 font-mono">{activeTender?.marginPercent}%</span>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="25" 
-                    value={activeTender?.marginPercent || 10}
-                    onChange={(e) => {
-                      if (activeTender) {
-                        updateTender(activeTender.id, { marginPercent: Number(e.target.value) });
-                      }
-                    }}
-                    className="w-full accent-primary-600"
-                  />
-                  <span className="text-[10.5px] text-slate-400 block">Typical Middle East rate: 8-15% range.</span>
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold text-slate-700">
-                    <label>Assigned Site Overheads</label>
-                    <span className="text-indigo-650 font-mono">{activeTender?.overheadPercent}%</span>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="20" 
-                    value={activeTender?.overheadPercent || 5}
-                    onChange={(e) => {
-                      if (activeTender) {
-                        updateTender(activeTender.id, { overheadPercent: Number(e.target.value) });
-                      }
-                    }}
-                    className="w-full accent-indigo-600"
-                  />
-                  <span className="text-[10.5px] text-slate-400 block">Covers supervision and local bond guarantees.</span>
-                </div>
-              </div>
-            </div>
-
-            {/* In-House Estimation Detail Sheet */}
-            <div className="bg-white border border-zentrix-border rounded-xl p-5 shadow-sm xl:col-span-2 space-y-3.5">
-              <h4 className="font-extrabold text-slate-800 leading-none">Individual BOQ Estimated Rate Breakdowns</h4>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                      <th className="pb-2">Code</th>
-                      <th className="pb-2">Description</th>
-                      <th className="pb-2 text-right">Qty</th>
-                      <th className="pb-2 text-right">In-house Base Rate</th>
-                      <th className="pb-2 text-right">Calculated Yield Rate</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs">
-                    {activeTenderBOQItems
-                      .filter(i => i.type === 'ITEM')
-                      .map(item => {
-                        const mup = activeTender ? (activeTender.marginPercent + activeTender.overheadPercent) / 100 : 0.15;
-                        const finalRate = (item.rate || 0) * (1 + mup);
-                        return (
-                          <tr key={item.id} className="hover:bg-slate-50/50">
-                            <td className="py-2.5 font-mono font-bold text-primary-650">{item.code}</td>
-                            <td className="py-2.5 font-medium text-slate-800 truncate max-w-xs">{item.description}</td>
-                            <td className="py-2.5 text-right font-mono font-semibold text-slate-700">{item.quantity}</td>
-                            <td className="py-2.5 text-right font-mono text-slate-500">{formatCurrency(item.rate || 0)}</td>
-                            <td className="py-2.5 text-right font-mono font-bold text-slate-900">{formatCurrency(finalRate)} LKR</td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* Supplier & Subcontractor Quotations Tabs (Options 5 & 6) */}
-      {(activeSubTab === 'tender-supplier-quotes' || activeSubTab === 'tender-subcontractor-quotes') && selectedTenderId && (
-        <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
-          
-          <div className="flex justify-between items-end">
-            <div className="space-y-1">
-              <span className="text-[11px] uppercase tracking-widest font-black text-slate-400">Pre-Contract Estimations</span>
-              <h2 className="text-xl font-black text-zentrix-blue tracking-tight leading-none">
-                {activeSubTab === 'tender-supplier-quotes' ? 'Supplier Materials Quotations' : 'Subcontractor Scopes Quotations'}
-              </h2>
-              <p className="text-slate-400 text-xs">Track active requests, record submitted prices, and mark preferred commercial bids.</p>
-            </div>
-            
-            <button 
-              onClick={() => {
-                setQuoteType(activeSubTab === 'tender-supplier-quotes' ? 'supplier' : 'subcontractor');
-                if (activeTender) {
-                  setSupplierFormData(prev => ({ ...prev, tenderId: activeTender.id }));
-                  setSubconFormData(prev => ({ ...prev, tenderId: activeTender.id }));
-                }
-                setIsQuoteModalOpen(true);
-              }}
-              className="px-4 py-2 bg-primary-600 font-bold hover:bg-primary-700 text-white text-xs rounded-lg flex items-center gap-1 shadow cursor-pointer"
-            >
-              <Plus size={15} /> Add Proposal Quote
-            </button>
-          </div>
-
-          {/* Quotations Compact Card view */}
-          {activeSubTab === 'tender-supplier-quotes' ? (
-            <div className="bg-white border border-zentrix-border rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-zentrix-border text-slate-400 font-bold text-[10.5px] uppercase tracking-wider">
-                    <th className="pl-6 py-3">Vendor / Supplier</th>
-                    <th className="px-4 py-3">Product Category</th>
-                    <th className="px-4 py-3">Quoted Amount</th>
-                    <th className="px-4 py-3 text-center">Delivery Window</th>
-                    <th className="px-4 py-3">Proposal Status</th>
-                    <th className="pr-6 py-3 text-right">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {activeTenderSupplierQuotes.length > 0 ? (
-                    activeTenderSupplierQuotes.map(q => (
-                      <tr key={q.id} className="hover:bg-slate-50/50">
-                        <td className="pl-6 py-3 font-bold text-slate-800">{q.supplier}</td>
-                        <td className="px-4 py-3 text-slate-500 font-semibold">{q.materialCategory}</td>
-                        <td className="px-4 py-3 font-mono font-black text-slate-900">{formatCurrency(q.amount)} {q.currency}</td>
-                        <td className="px-4 py-3 font-mono text-center text-slate-700">{q.deliveryPeriod}</td>
-                        <td className="px-4 py-3">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded text-[10px] font-black uppercase",
-                            q.status === 'Approved' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
-                            q.status === 'Received' ? "bg-blue-50 text-blue-600 border border-blue-100" : "bg-red-50 text-red-650"
-                          )}>
-                            {q.status}
-                          </span>
-                        </td>
-                        <td className="pr-6 py-3 text-right text-slate-400 font-medium italic">{q.remarks || 'None'}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="py-16 text-center text-slate-400">No Supplier proposals registered for this tender yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="bg-white border border-zentrix-border rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-zentrix-border text-slate-400 font-bold text-[10.5px] uppercase tracking-wider">
-                    <th className="pl-6 py-3">Subcontractor</th>
-                    <th className="px-4 py-3">Specialty Scope</th>
-                    <th className="px-4 py-3">Quoted Proposal Amount</th>
-                    <th className="px-4 py-3 text-center">Completion Duration</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="pr-6 py-3 text-right">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {activeTenderSubconQuotes.length > 0 ? (
-                    activeTenderSubconQuotes.map(sc => (
-                      <tr key={sc.id} className="hover:bg-slate-50/50">
-                        <td className="pl-6 py-3 font-bold text-slate-800">{sc.subcontractor}</td>
-                        <td className="px-4 py-3 text-slate-500 font-semibold">{sc.workCategory}</td>
-                        <td className="px-4 py-3 font-mono font-black text-slate-900">{formatCurrency(sc.quotedValue)} {sc.currency}</td>
-                        <td className="px-4 py-3 font-mono text-center text-slate-700">{sc.duration}</td>
-                        <td className="px-4 py-3 text-xs">
-                          <span className={cn(
-                            "px-2.5 py-0.5 rounded font-black uppercase text-[10px]",
-                            sc.status === 'Selected' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
-                            sc.status === 'Submitted' ? "bg-purple-50 text-purple-600 border border-purple-100" : "bg-slate-100 text-slate-400"
-                          )}>
-                            {sc.status}
-                          </span>
-                        </td>
-                        <td className="pr-6 py-3 text-right text-slate-400 font-medium italic">{sc.remarks || 'None'}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="py-16 text-center text-slate-400">No Subcontractor quotes registered for this tender yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-        </div>
-      )}
-
-      {/* Tender Revisions (Option 7) */}
-      {activeSubTab === 'tender-revisions' && selectedTenderId && (
-        <div className="space-y-6 animate-fade-in text-[13px] text-slate-600">
-          
-          <div className="flex justify-between items-end">
-            <div className="space-y-1">
-              <span className="text-[11px] uppercase tracking-widest font-black text-slate-400">Pre-Contract Estimations</span>
-              <h2 className="text-xl font-black text-zentrix-blue tracking-tight leading-none">Tender Revisions & Client Addendums</h2>
-              <p className="text-slate-400 text-xs">Record incoming RFP changes, modifications in bill items quantities, and track estimations version history.</p>
-            </div>
-            
-            <button 
-              onClick={() => setIsRevisionModalOpen(true)}
-              className="px-4 py-2 bg-primary-600 font-bold hover:bg-primary-700 text-white text-xs rounded-lg flex items-center gap-1 shadow cursor-pointer mr-0.5"
-            >
-              <Plus size={15} /> Add Revision Tracker
-            </button>
-          </div>
-
-          {/* Revisions list */}
-          <div className="bg-white border border-zentrix-border rounded-xl shadow-sm overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 border-b border-zentrix-border text-slate-400 font-bold text-[10.5px] uppercase tracking-wider">
-                  <th className="pl-6 py-3 w-40">Revision Code</th>
-                  <th className="px-4 py-3">Description of Changes</th>
-                  <th className="px-4 py-3 w-40">Registered Date</th>
-                  <th className="px-4 py-3 w-48">Prepared By</th>
-                  <th className="px-4 py-3 w-32">Status</th>
-                  <th className="pr-6 py-3 text-right">Revised Cost Estimate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {activeTenderRevisions.length > 0 ? (
-                  activeTenderRevisions.map(rev => (
-                    <tr key={rev.id} className="hover:bg-slate-50/50">
-                      <td className="pl-6 py-3 font-mono font-bold text-primary-650">{rev.revisionNo}</td>
-                      <td className="px-4 py-3 font-medium text-slate-850 balance">{rev.description}</td>
-                      <td className="px-4 py-3 font-mono text-slate-500">{rev.date}</td>
-                      <td className="px-4 py-3 font-medium text-slate-600">{rev.revisedBy}</td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[10px] font-bold uppercase">{rev.status}</span>
-                      </td>
-                      <td className="pr-6 py-3 text-right font-mono font-black text-slate-900">{formatCurrency(rev.revisedEstimate)} LKR</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="py-16 text-center text-slate-400">No revisions mapped for this tender opportunity.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-      )}
-
-      {/* Bid Submission (Option 8) */}
-      {activeSubTab === 'tender-bid-submission' && selectedTenderId && (
-        <div className="space-y-6 animate-fade-in text-[13px] text-slate-600 font-sans">
-          
-          <div className="space-y-1">
-            <span className="text-[11px] uppercase tracking-widest font-black text-slate-400">Pre-Contract Estimations</span>
-            <h2 className="text-xl font-black text-zentrix-blue tracking-tight leading-none">Proposal Submission & Results</h2>
-            <p className="text-slate-400 text-xs">Finalize bid proposals, input submitted contract values and discount parameters, and convert awarded results.</p>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
-            
-            {/* Form submission card */}
-            <div className="bg-white border border-zentrix-border rounded-xl p-5 shadow-sm space-y-4">
-              <h4 className="font-extrabold text-slate-800 leading-none">Compile Tender Submission</h4>
-              <p className="text-slate-400 text-xs">Applies financial discount matrices onto built-up estimates for physical bid envelope packing.</p>
-              
-              {activeTenderSubmission ? (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4.5 space-y-3">
-                  <h5 className="font-bold text-emerald-805 text-xs flex items-center gap-1.5 leading-none">
-                     Bid Proposal Submitted
-                  </h5>
-                  <div className="divide-y divide-emerald-100 text-xs text-slate-700">
-                    <div className="flex justify-between py-1.5">
-                      <span>Submitted Reference:</span>
-                      <span className="font-bold">{activeTenderSubmission.submissionNo}</span>
-                    </div>
-                    <div className="flex justify-between py-1.5">
-                      <span>Date Submitted:</span>
-                      <span className="font-bold text-slate-700">{activeTenderSubmission.submittedDate}</span>
-                    </div>
-                    <div className="flex justify-between py-1.5">
-                      <span>Applied Discount:</span>
-                      <span className="font-bold">{activeTenderSubmission.discountPercent}%</span>
-                    </div>
-                    <div className="flex justify-between py-1.5">
-                      <span>Total Bid Amount:</span>
-                      <span className="font-bold font-mono text-slate-900">{formatCurrency(activeTenderSubmission.finalBidAmount)} LKR</span>
-                    </div>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-3.5 pt-2">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 block text-left">Proposed Gross Value (LKR)</label>
-                    <input 
-                      type="text" 
-                      disabled 
-                      value={formatCurrency(tenderTotals.finalBid)} 
-                      className="w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl font-mono text-slate-600 font-bold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[11px] font-bold text-slate-700">
-                      <label>Applied Board Discount (%)</label>
-                      <span className="font-mono text-primary-600">{discountPct}%</span>
-                    </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="10" 
-                      step="0.5"
-                      value={discountPct}
-                      onChange={(e) => setDiscountPct(Number(e.target.value))}
-                      className="w-full accent-primary-600"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 block text-left">Compiled Net Bid Offer</label>
-                    <div className="w-full p-2.5 bg-slate-900 text-white rounded-xl font-mono text-lg font-black text-center">
-                      {formatCurrency(tenderTotals.finalBid * (1 - (discountPct / 100)))} LKR
-                    </div>
-                  </div>
-
+              ) : activeTender.status === 'Lost' ? (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center space-y-3 max-w-lg mx-auto text-red-800">
+                  <XCircle className="mx-auto" size={36} />
+                  <h4 className="font-bold text-sm">Opportunity Terminated ("Lost")</h4>
+                  <p className="text-xs max-w-sm mx-auto leading-relaxed">
+                    This bid proposal was marked as unsuccessful by client audit boards. Estimations remain preserved for pre-contract analytics.
+                  </p>
                   <button 
-                    onClick={() => setIsSubmitBidModalOpen(true)}
-                    className="w-full py-2 bg-primary-650 hover:bg-primary-700 text-white font-bold rounded-xl text-xs shadow cursor-pointer text-center block"
+                    onClick={() => {
+                      updateTender(activeTender.id, { status: 'Estimating' });
+                      setActiveStep(4);
+                    }}
+                    className="mt-2 text-xs font-bold text-indigo-650 hover:underline cursor-pointer"
                   >
-                     Lock & Submit Project Proposal Bid
+                    ↺ Re-open estimating envelope to re-bidding
                   </button>
                 </div>
+              ) : (
+                <div className="bg-emerald-50 border border-emerald-150 rounded-2xl p-6 text-center space-y-4 max-w-lg mx-auto">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+                    <Sparkles size={24} className="animate-spin" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-emerald-950 leading-none">Pre-Contract Tender Awarded Successfully!</h3>
+                    <p className="text-xs text-emerald-700 leading-snug tracking-tight max-w-sm mx-auto mt-2">
+                      Formal contract letters received. Click below to synthesize direct estimates and commission a live Post-Contract workspace containing synchronized BOQ units!
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <button 
+                      onClick={handleConvertTender}
+                      className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black rounded-xl inline-flex items-center gap-1.5 shadow-md border border-emerald-505 transition-transform hover:scale-103 cursor-pointer duration-150"
+                    >
+                      Commission Post-Contract Project Workspace 🚀
+                    </button>
+                  </div>
+                </div>
               )}
-            </div>
 
-            {/* Results tracking list */}
-            <div className="bg-white border border-zentrix-border rounded-xl p-5 shadow-sm xl:col-span-2 space-y-4">
-              <h4 className="font-extrabold text-slate-850 leading-none">Formal Submission Register</h4>
-              <p className="text-slate-400 text-xs">Audit tracking entries for registered proposals sent to Sri Lankan/Middle East contracting agencies.</p>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                      <th className="pb-2">Sub Ref</th>
-                      <th className="pb-2">Gross Proposal</th>
-                      <th className="pb-2 text-center">Discount</th>
-                      <th className="pb-2 text-right">Discounted Bid Amount</th>
-                      <th className="pb-2 text-center">Opening Date</th>
-                      <th className="pr-2 pb-2 text-right">Result Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs">
-                    {bidSubmissions.map(subIndex => (
-                      <tr key={subIndex.id} className="hover:bg-slate-50/50">
-                        <td className="py-2.5 font-mono font-bold text-primary-600">{subIndex.submissionNo}</td>
-                        <td className="py-2.5 font-mono font-bold text-slate-650">{formatCurrency(subIndex.submittedAmount)} LKR</td>
-                        <td className="py-2.5 text-center font-mono font-semibold text-slate-500">{subIndex.discountPercent}%</td>
-                        <td className="py-2.5 text-right font-mono font-black text-slate-900">{formatCurrency(subIndex.finalBidAmount)} LKR</td>
-                        <td className="py-2.5 text-center text-slate-500">{subIndex.submittedDate}</td>
-                        <td className="py-2.5 text-right">
-                          <span className={cn(
-                            "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide",
-                            subIndex.status === 'Awarded' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
-                            subIndex.status === 'Pending' ? "bg-amber-50 text-amber-600 border border-amber-100" : "bg-slate-100 text-slate-500"
-                          )}>
-                            {subIndex.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setActiveStep(5)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5"
+                >
+                  <ChevronLeft size={14} /> Back to Submissions
+                </button>
+                <div className="text-slate-400 text-xs font-medium">Bidding Wizard Completed</div>
               </div>
             </div>
-
-          </div>
+          )}
 
         </div>
       )}
 
-      {/* Tender Reports (Option 9) */}
-      {activeSubTab === 'tender-reports' && selectedTenderId && (
-        <div className="space-y-6 animate-fade-in text-[13px] text-slate-600 font-sans">
-          
-          <div className="space-y-1">
-            <span className="text-[11px] uppercase tracking-widest font-black text-slate-400">Pre-Contract Estimations</span>
-            <h2 className="text-xl font-black text-zentrix-blue tracking-tight leading-none">Commercial QS Estimations Reports</h2>
-            <p className="text-slate-400 text-xs">Printable executive summaries for company bids, quotations evaluation worksheets, and conversion logs.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            
-            {/* Tender Summary Report */}
-            <div className="bg-white border border-zentrix-border rounded-xl p-5 shadow-sm space-y-4">
-              <span className="p-2 bg-indigo-50 text-indigo-650 rounded-lg inline-block text-xs font-bold leading-none"><FileCheck size={16} /> Commercial QS summary</span>
-              <h4 className="font-extrabold text-slate-800 leading-none">RDA Elevated Expressway Package (C3)</h4>
-              <p className="text-slate-405 text-xs">Consolidated pricing worksheets prepared for board approval session.</p>
-              
-              <div className="space-y-2 border-t border-dashed border-slate-150 pt-3 text-xs text-slate-650">
-                <div className="flex justify-between">
-                  <span>Gross Built Estimate:</span>
-                  <span className="font-bold text-slate-800">18,450,000 LKR</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Target Margin Allowed:</span>
-                  <span className="font-bold text-emerald-600">2,214,000 LKR (12%)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>General Overheads:</span>
-                  <span className="font-bold text-indigo-650">1,476,000 LKR (8%)</span>
-                </div>
-                <div className="flex justify-between border-t border-slate-100 pt-2 font-bold text-slate-900 text-sm">
-                  <span>Compiled Bid Offer:</span>
-                  <span>22,140,000 LKR</span>
-                </div>
-              </div>
-              
-              <button 
-                onClick={() => alert('Opening compiled PDF worksheet simulator... Saved in pre-contract logs registry.')}
-                className="w-full py-2 bg-slate-150 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors text-center"
-              >
-                Download Compiled PDF Worksheet
-              </button>
-            </div>
-
-            {/* Quotations Evaluation Worksheets SUMMARY */}
-            <div className="bg-white border border-zentrix-border rounded-xl p-5 shadow-sm space-y-4">
-              <span className="p-2 bg-purple-50 text-purple-650 rounded-lg inline-block text-xs font-bold leading-none"><Calculator size={16} /> SCM quotes analysis</span>
-              <h4 className="font-extrabold text-slate-800 leading-none">Dubai South Aerospace Hangar 4B</h4>
-              <p className="text-slate-405 text-xs">Aggregated vendor supplier prices compared to standard in-house estimative averages.</p>
-              
-              <div className="space-y-2 border-t border-dashed border-slate-150 pt-3 text-xs text-slate-650">
-                <div className="flex justify-between">
-                  <span>Jotun UAE Paints Quote:</span>
-                  <span className="font-bold text-emerald-600">1,250,000 AED [Preferred]</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Reinforcement Steel Quote:</span>
-                  <span className="font-bold text-slate-700">Lanwa Sanstha [Active]</span>
-                </div>
-                <div className="flex justify-between border-t border-slate-100 pt-2 font-bold text-slate-900 text-sm">
-                  <span>Total External Bids Sourced:</span>
-                  <span>5 Registered Quotes</span>
-                </div>
-              </div>
-              
-              <button 
-                onClick={() => alert('SCM quotations evaluated worksheet downloaded successfully.')}
-                className="w-full py-2 bg-slate-150 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors text-center"
-              >
-                Download SCM Evaluation Matrix
-              </button>
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* CREATE TENDER OPPORTUNITY MODAL */}
+      {/* OVERLAY MODAL: CREATE OPPORTUNITY */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4 animate-fade-in backdrop-blur-xs">
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4 animate-fade-in backdrop-blur-xs text-xs">
           <form 
             onSubmit={handleCreateTenderSubmit}
-            className="bg-white rounded-2xl border border-zentrix-border shadow-2xl p-6.5 max-w-lg w-full text-left space-y-4 animate-scale-up"
+            className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6.5 max-w-lg w-full text-left space-y-4"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-zentrix-blue flex items-center gap-1.5 leading-none">
-                <Briefcase size={16} className="text-primary-600" /> Create Tender Opportunity
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 leading-none">
+                 Initiate Tender Opportunity Draft
               </h3>
               <button type="button" onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Tender Reference No*</label>
+                <label className="font-bold text-slate-700 block">Tender Reference No*</label>
                 <input 
                   type="text" 
                   value={newTender.tenderNo}
                   onChange={(e) => setNewTender({ ...newTender, tenderNo: e.target.value })}
-                  placeholder="e.g. TND-2026-COL-095"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono"
                   required
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Tender Name*</label>
+                <label className="font-bold text-slate-700 block">Opportunity Name*</label>
                 <input 
                   type="text" 
                   value={newTender.name}
                   onChange={(e) => setNewTender({ ...newTender, name: e.target.value })}
-                  placeholder="e.g. Galle Face Pier Extension"
+                  placeholder="e.g. Port Access Elevated Highway"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
                   required
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Client Organization*</label>
+                <label className="font-bold text-slate-700 block">Client Organization*</label>
                 <input 
                   type="text" 
                   value={newTender.client}
@@ -2237,7 +1958,7 @@ export const TenderManagementShell: React.FC<{
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Consultant Engineer</label>
+                <label className="font-bold text-slate-700 block">Consultant Engineer</label>
                 <input 
                   type="text" 
                   value={newTender.consultant}
@@ -2248,11 +1969,11 @@ export const TenderManagementShell: React.FC<{
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Tender Division Class</label>
+                <label className="font-bold text-slate-700 block">Tender Division Sector</label>
                 <select 
                   value={newTender.tenderType}
                   onChange={(e) => setNewTender({ ...newTender, tenderType: e.target.value as any })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold cursor-pointer"
                 >
                   <option value="Building">Building</option>
                   <option value="Infrastructure">Infrastructure</option>
@@ -2264,28 +1985,28 @@ export const TenderManagementShell: React.FC<{
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Submission Closing Date</label>
+                <label className="font-bold text-slate-700 block">Submission Closing Date</label>
                 <input 
                   type="date" 
                   value={newTender.submissionDate}
                   onChange={(e) => setNewTender({ ...newTender, submissionDate: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-xl outline-none font-mono"
                 />
               </div>
 
               <div className="col-span-2 space-y-1">
-                <label className="font-bold text-slate-700">Scopes / Opportunity Description</label>
+                <label className="font-bold text-slate-700 block">Scopes / Opportunity Description</label>
                 <textarea 
                   rows={2}
                   value={newTender.description}
                   onChange={(e) => setNewTender({ ...newTender, description: e.target.value })}
                   placeholder="Describe precast concrete piles, pavement guidelines, or core scope parameters..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none leading-snug"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button 
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
@@ -2295,7 +2016,7 @@ export const TenderManagementShell: React.FC<{
               </button>
               <button 
                 type="submit"
-                className="px-5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs"
+                className="px-5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs cursor-pointer"
               >
                 Add Opportunity Draft
               </button>
@@ -2304,35 +2025,35 @@ export const TenderManagementShell: React.FC<{
         </div>
       )}
 
-      {/* COMPONENT DRAWER: CREATE BOQ ITEM */}
+      {/* OVERLAY MODAL: CREATE BOQ ITEM */}
       {isAddBoqItemOpen && (
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4 animate-fade-in backdrop-blur-xs">
           <form 
             onSubmit={handleCreateBoqItem}
-            className="bg-white rounded-2xl border border-zentrix-border shadow-2xl p-6.5 max-w-md w-full text-left space-y-4 animate-scale-up text-xs"
+            className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6.5 max-w-md w-full text-left space-y-4 text-xs"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-zentrix-blue flex items-center gap-1.5 leading-none">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-indigo-705 flex items-center gap-1.5 leading-none">
                  Add Bill of Quantities Core Item
               </h3>
-              <button type="button" onClick={() => setIsAddBoqItemOpen(false)} className="text-slate-405 hover:text-slate-600 font-bold">✕</button>
+              <button type="button" onClick={() => setIsAddBoqItemOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
             <div className="space-y-3">
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Item Type</label>
+                <label className="font-bold text-slate-700 block">Item Type</label>
                 <div className="flex gap-2">
                   <button 
                     type="button"
-                    onClick={() => { setBoqItemType('ITEM'); setNewBoqItem({ ...newBoqItem, code: 'B.4' }); }}
-                    className={cn("flex-1 py-1.5 border rounded-lg text-center font-bold", boqItemType === 'ITEM' ? "border-primary-600 text-primary-600 bg-primary-50/20" : "border-slate-200 text-slate-500")}
+                    onClick={() => { setBoqItemType('ITEM'); setNewBoqItem({ ...newBoqItem, code: `B.${activeTenderBOQItems.length + 1}` }); }}
+                    className={cn("flex-1 py-1.5 border rounded-lg text-center font-bold duration-150 cursor-pointer text-xs", boqItemType === 'ITEM' ? "border-indigo-600 text-indigo-600 bg-indigo-50/20" : "border-slate-200 text-slate-500")}
                   >
                     BOQ Rate Item
                   </button>
                   <button 
                     type="button"
                     onClick={() => { setBoqItemType('SECTION'); setNewBoqItem({ ...newBoqItem, code: 'C' }); }}
-                    className={cn("flex-1 py-1.5 border rounded-lg text-center font-bold", boqItemType === 'SECTION' ? "border-primary-600 text-primary-600 bg-primary-50/20" : "border-slate-200 text-slate-500")}
+                    className={cn("flex-1 py-1.5 border rounded-lg text-center font-bold duration-150 cursor-pointer text-xs", boqItemType === 'SECTION' ? "border-indigo-600 text-indigo-600 bg-indigo-50/20" : "border-slate-200 text-slate-500")}
                   >
                     Division Section
                   </button>
@@ -2340,7 +2061,7 @@ export const TenderManagementShell: React.FC<{
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Unified Item Code / Division Code*</label>
+                <label className="font-bold text-slate-700 block">Unified Item Code / Division Code*</label>
                 <input 
                   type="text" 
                   value={newBoqItem.code}
@@ -2352,7 +2073,7 @@ export const TenderManagementShell: React.FC<{
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Detailed Description*</label>
+                <label className="font-bold text-slate-700 block">Detailed Description*</label>
                 <textarea 
                   rows={2}
                   value={newBoqItem.description}
@@ -2366,7 +2087,7 @@ export const TenderManagementShell: React.FC<{
               {boqItemType === 'ITEM' && (
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Unit</label>
+                    <label className="font-bold text-slate-700 block">Unit</label>
                     <input 
                       type="text" 
                       value={newBoqItem.unit}
@@ -2376,7 +2097,7 @@ export const TenderManagementShell: React.FC<{
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Quantity</label>
+                    <label className="font-bold text-slate-700 block">Quantity</label>
                     <input 
                       type="number" 
                       value={newBoqItem.quantity}
@@ -2385,7 +2106,7 @@ export const TenderManagementShell: React.FC<{
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Unit Rate (LKR)</label>
+                    <label className="font-bold text-slate-700 block">Unit Rate (LKR)</label>
                     <input 
                       type="number" 
                       value={newBoqItem.rate}
@@ -2398,7 +2119,7 @@ export const TenderManagementShell: React.FC<{
 
               {boqItemType === 'ITEM' && (
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Link Rate Analysis reference</label>
+                  <label className="font-bold text-slate-700 block">Link Rate Analysis reference</label>
                   <select 
                     value={newBoqItem.rateAnalysisId}
                     onChange={(e) => {
@@ -2409,7 +2130,7 @@ export const TenderManagementShell: React.FC<{
                         rate: selectedRa ? selectedRa.finalRate : newBoqItem.rate
                       });
                     }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-xl outline-none font-semibold cursor-pointer"
                   >
                     <option value="">-- No Direct Link --</option>
                     {MOCK_RATE_ANALYSES.map(ra => (
@@ -2421,11 +2142,11 @@ export const TenderManagementShell: React.FC<{
 
               {boqItemType === 'ITEM' && (
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Parent Division Section</label>
+                  <label className="font-bold text-slate-700 block">Parent Division Section</label>
                   <select 
                     value={newBoqItem.parentId}
                     onChange={(e) => setNewBoqItem({ ...newBoqItem, parentId: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold cursor-pointer"
                   >
                     <option value="">-- Main level --</option>
                     {activeTenderBOQItems.filter(i => i.type === 'SECTION').map(sec => (
@@ -2436,7 +2157,7 @@ export const TenderManagementShell: React.FC<{
               )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button 
                 type="button"
                 onClick={() => setIsAddBoqItemOpen(false)}
@@ -2446,7 +2167,7 @@ export const TenderManagementShell: React.FC<{
               </button>
               <button 
                 type="submit"
-                className="px-5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs"
+                className="px-5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs cursor-pointer"
               >
                 Create BOQ Entry
               </button>
@@ -2455,24 +2176,24 @@ export const TenderManagementShell: React.FC<{
         </div>
       )}
 
-      {/* REGISTER PROPOSAL QUOTATION MODAL */}
+      {/* OVERLAY MODAL: CREATE PROPOSAL QUOTATION */}
       {isQuoteModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4 animate-fade-in backdrop-blur-xs text-xs">
           <form 
             onSubmit={handleAddQuotation}
-            className="bg-white rounded-2xl border border-zentrix-border shadow-2xl p-6.5 max-w-md w-full text-left space-y-4 animate-scale-up"
+            className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6.5 max-w-md w-full text-left space-y-4"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-zentrix-blue flex items-center gap-1.5 leading-none">
-                 Register Proposal Quote
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 leading-none">
+                 Register Proposal Quote Offer
               </h3>
-              <button type="button" onClick={() => setIsQuoteModalOpen(false)} className="text-slate-405 hover:text-slate-600 font-bold">✕</button>
+              <button type="button" onClick={() => setIsQuoteModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
             {quoteType === 'supplier' ? (
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Vendor / Supplier Name*</label>
+                  <label className="font-bold text-slate-700 block">Vendor / Supplier Name*</label>
                   <input 
                     type="text" 
                     value={supplierFormData.supplier}
@@ -2484,11 +2205,11 @@ export const TenderManagementShell: React.FC<{
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Materials Category*</label>
+                  <label className="font-bold text-slate-700 block">Materials Category*</label>
                   <select 
                     value={supplierFormData.materialCategory}
                     onChange={(e) => setSupplierFormData({ ...supplierFormData, materialCategory: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold cursor-pointer"
                   >
                     <option value="Cement / Bulk Aggregates">Cement / Bulk Aggregates</option>
                     <option value="Reinforcement Rebar Steel">Reinforcement Rebar Steel</option>
@@ -2500,7 +2221,7 @@ export const TenderManagementShell: React.FC<{
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Amount Offer*</label>
+                    <label className="font-bold text-slate-700 block">Amount Offer (LKR)*</label>
                     <input 
                       type="number" 
                       value={supplierFormData.amount}
@@ -2510,7 +2231,7 @@ export const TenderManagementShell: React.FC<{
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Currency</label>
+                    <label className="font-bold text-slate-700 block">Currency</label>
                     <input 
                       type="text" 
                       value={supplierFormData.currency}
@@ -2521,7 +2242,7 @@ export const TenderManagementShell: React.FC<{
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Delivery Period / Turnaround</label>
+                  <label className="font-bold text-slate-700 block">Delivery Turnaround Window</label>
                   <input 
                     type="text" 
                     value={supplierFormData.deliveryPeriod}
@@ -2532,7 +2253,7 @@ export const TenderManagementShell: React.FC<{
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Technical Remarks</label>
+                  <label className="font-bold text-slate-700 block">Scope Remarks</label>
                   <textarea 
                     rows={2}
                     value={supplierFormData.remarks}
@@ -2544,7 +2265,7 @@ export const TenderManagementShell: React.FC<{
             ) : (
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Subcontractor Name*</label>
+                  <label className="font-bold text-slate-700 block">Subcontractor Name*</label>
                   <input 
                     type="text" 
                     value={subconFormData.subcontractor}
@@ -2556,7 +2277,7 @@ export const TenderManagementShell: React.FC<{
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Specialty Scope Division*</label>
+                  <label className="font-bold text-slate-700 block">Specialty Scope Division*</label>
                   <input 
                     type="text" 
                     value={subconFormData.workCategory}
@@ -2569,7 +2290,7 @@ export const TenderManagementShell: React.FC<{
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Bid Amount Offer*</label>
+                    <label className="font-bold text-slate-700 block">Bid Amount Offer (LKR)*</label>
                     <input 
                       type="number" 
                       value={subconFormData.quotedValue}
@@ -2579,7 +2300,7 @@ export const TenderManagementShell: React.FC<{
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Duration Required</label>
+                    <label className="font-bold text-slate-700 block">Required Duration</label>
                     <input 
                       type="text" 
                       value={subconFormData.duration}
@@ -2591,7 +2312,7 @@ export const TenderManagementShell: React.FC<{
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Technical Scope Remarks</label>
+                  <label className="font-bold text-slate-700 block">Technical Scope Remarks</label>
                   <textarea 
                     rows={2}
                     value={subconFormData.remarks}
@@ -2602,7 +2323,7 @@ export const TenderManagementShell: React.FC<{
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button 
                 type="button"
                 onClick={() => setIsQuoteModalOpen(false)}
@@ -2612,127 +2333,9 @@ export const TenderManagementShell: React.FC<{
               </button>
               <button 
                 type="submit"
-                className="px-5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs"
+                className="px-5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs cursor-pointer"
               >
                 Register Bid Offer
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* TENDER REVISIONS MODAL */}
-      {isRevisionModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4 animate-fade-in backdrop-blur-xs text-xs">
-          <form 
-            onSubmit={handleAddRevisionSubmit}
-            className="bg-white rounded-2xl border border-zentrix-border shadow-2xl p-6.5 max-w-md w-full text-left space-y-4 animate-scale-up"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-zentrix-blue flex items-center gap-1.5 leading-none">
-                 Add Revision Tracker
-              </h3>
-              <button type="button" onClick={() => setIsRevisionModalOpen(false)} className="text-slate-405 hover:text-slate-600 font-bold">✕</button>
-            </div>
-
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700">Description of Client Changes / Addendums*</label>
-                <textarea 
-                  rows={3}
-                  value={revNotes}
-                  onChange={(e) => setRevNotes(e.target.value)}
-                  placeholder="e.g. Revised realignment of piling corridor under Colombo Port expansion interface limit."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700">Revised Cost Estimate (LKR)</label>
-                <input 
-                  type="number" 
-                  value={revEstimate}
-                  onChange={(e) => setRevEstimate(Number(e.target.value))}
-                  placeholder="Defaults to active sum"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button 
-                type="button"
-                onClick={() => setIsRevisionModalOpen(false)}
-                className="px-4 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-xs font-bold"
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit"
-                className="px-5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs"
-              >
-                Add Revision History
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* COMPRESS BID SUBMISSION MODAL */}
-      {isSubmitBidModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4 animate-fade-in backdrop-blur-xs text-xs">
-          <form 
-            onSubmit={handleAddSubmissionSubmit}
-            className="bg-white rounded-2xl border border-zentrix-border shadow-2xl p-6.5 max-w-sm w-full text-left space-y-4 animate-scale-up"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-zentrix-blue flex items-center gap-1.5 leading-none">
-                 Finalize Bid Proposal Submission
-              </h3>
-              <button type="button" onClick={() => setIsSubmitBidModalOpen(false)} className="text-slate-405 hover:text-slate-600 font-bold">✕</button>
-            </div>
-
-            <p className="text-slate-500 leading-normal">
-              You are locking the current base estimate of <strong className="text-slate-900 font-mono">{formatCurrency(tenderTotals.finalBid)} LKR</strong> with discount coefficient of <strong className="text-slate-900">{discountPct}%</strong>. This formally moves the pre-contract opportunity status to <span className="bg-purple-50 text-purple-650 px-1.5 font-bold uppercase rounded text-[10px]">Submitted</span>.
-            </p>
-
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700">Submission Reference Document ID</label>
-                <input 
-                  type="text" 
-                  disabled 
-                  value={`SUB-TND-${Math.floor(1000 + Math.random() * 9000)}`}
-                  className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl outline-none font-mono text-slate-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700">Proposal Tender Scope Notes / Remarks</label>
-                <textarea 
-                  rows={2}
-                  value={submissionNotes}
-                  onChange={(e) => setSubmissionNotes(e.target.value)}
-                  placeholder="e.g. Filed online via tejarat portal with comprehensive project resume..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button 
-                type="button"
-                onClick={() => setIsSubmitBidModalOpen(false)}
-                className="px-4 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-xs font-bold"
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit"
-                className="px-5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-xs hover:shadow-lg transition-transform hover:scale-105"
-              >
-                Transmit Final Bid Envelope
               </button>
             </div>
           </form>
